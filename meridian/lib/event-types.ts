@@ -4,7 +4,27 @@
 
 import type { Department } from "./department-context"
 import type { EventSchema } from "./event-schema"
-import { PLACEHOLDER } from "./event-schema"
+
+/** Sources that must never appear in UI; backend rejects these on insert and filters on read */
+const INVALID_SOURCES = new Set([
+  "Simulation",
+  "Demo",
+  "Not enough verified data yet",
+  "Not enough verified data yet.",
+  "Insufficient data",
+  "Unverified",
+  "Pending verification",
+  "Unknown source",
+  "Unknown",
+  "External",
+])
+
+/** True only when event has a non-empty, verified source (no placeholder/unverified). */
+export function isVerifiedSource(event: { source?: string | null }): boolean {
+  const s = (event.source ?? "").trim()
+  if (!s) return false
+  return !INVALID_SOURCES.has(s)
+}
 
 export interface ApiEvent {
   id: number | string
@@ -50,8 +70,8 @@ export function departmentToRole(
   return map[department]
 }
 
-function orPlaceholder(v: string | undefined | null): string {
-  return v && String(v).trim() ? String(v).trim() : PLACEHOLDER
+function orEmpty(v: string | undefined | null): string {
+  return v && String(v).trim() ? String(v).trim() : ""
 }
 
 /** Convert API event to canonical EventSchema for UnifiedExecutiveCard */
@@ -62,19 +82,19 @@ export function apiEventToEventSchema(event: ApiEvent): EventSchema {
 
   return {
     id: String(event.id),
-    title: orPlaceholder(event.title),
-    summary: orPlaceholder(event.summary),
+    title: orEmpty(event.title),
+    summary: orEmpty(event.summary),
     event_type: event.event_type || "Operational",
-    impact_analysis: orPlaceholder(event.impact_analysis || event.impact),
-    primary_outcome: orPlaceholder(event.primary_outcome),
-    confidence: orPlaceholder(event.confidence || event.confidence_level),
-    whats_changing: orPlaceholder(event.whats_changing || event.what_is_changing),
-    why_it_matters: orPlaceholder(event.why_it_matters),
-    what_to_do_now: orPlaceholder(event.what_to_do_now || event.suggested_action),
-    decision_urgency: orPlaceholder(event.decision_urgency),
-    recommended_next_step: orPlaceholder(event.recommended_next_step),
-    assumptions: orPlaceholder(event.assumptions),
-    source: orPlaceholder(event.source),
+    impact_analysis: orEmpty(event.impact_analysis || event.impact),
+    primary_outcome: orEmpty(event.primary_outcome),
+    confidence: orEmpty(event.confidence || event.confidence_level),
+    whats_changing: orEmpty(event.whats_changing || event.what_is_changing),
+    why_it_matters: orEmpty(event.why_it_matters),
+    what_to_do_now: orEmpty(event.what_to_do_now || event.suggested_action),
+    decision_urgency: orEmpty(event.decision_urgency),
+    recommended_next_step: orEmpty(event.recommended_next_step),
+    assumptions: orEmpty(event.assumptions),
+    source: orEmpty(event.source),
     article_url: event.article_url && String(event.article_url).trim() ? String(event.article_url).trim() : undefined,
     updated_at: updatedAt || "—",
     fetched_at: event.fetched_at ?? undefined,

@@ -16,7 +16,7 @@ class RawSource(Base):
     __tablename__ = "raw_sources"
     
     id = Column(Integer, primary_key=True, index=True)
-    source = Column(String, nullable=False)  # "Serper" | "OpenFDA" | "Simulation"
+    source = Column(String, nullable=False)  # "Serper" | "OpenFDA" | "CDSCO" | etc.
     title = Column(String, nullable=False)
     content = Column(Text, nullable=False)
     url = Column(String, nullable=True)

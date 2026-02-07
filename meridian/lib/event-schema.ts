@@ -30,5 +30,3 @@ export interface EventSchema {
   positioning_after?: string
   agent_action_log?: string  // JSON array string
 }
-
-export const PLACEHOLDER = "Not enough verified data yet."

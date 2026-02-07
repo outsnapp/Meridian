@@ -8,7 +8,6 @@ export const API_BASE_URL =
 export const api = {
   ingestLive: () => `${API_BASE_URL}/ingest/live`,
   process: () => `${API_BASE_URL}/process`,
-  simulate: () => `${API_BASE_URL}/simulate`,
   events: (params?: { role?: string; tags?: string }) => {
     const url = new URL(`${API_BASE_URL}/events`);
     if (params?.role) url.searchParams.set("role", params.role);
@@ -18,6 +17,7 @@ export const api = {
   reset: () => `${API_BASE_URL}/reset`,
   chat: () => `${API_BASE_URL}/chat`,
   precedents: () => `${API_BASE_URL}/precedents`,
+  analyticsSummary: () => `${API_BASE_URL}/analytics/summary`,
   debugEventSchema: () => `${API_BASE_URL}/debug/event-schema`,
   cleanupDuplicates: () => `${API_BASE_URL}/debug/cleanup-duplicates`,
 };

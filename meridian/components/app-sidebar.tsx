@@ -1,6 +1,6 @@
 "use client"
 
-import { Rss, BarChart3, Compass, FlaskConical, MessageCircle, Settings, User, Zap, ChevronDown } from "lucide-react"
+import { Rss, BarChart3, MessageCircle, Settings, Zap, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useState } from "react"
 import { toast } from "sonner"
@@ -20,8 +20,6 @@ const navItems = [
   { icon: Rss, label: "Intelligence Feed", view: "feed" as const },
   { icon: MessageCircle, label: "Chat", view: "chat" as const },
   { icon: BarChart3, label: "Analytics", view: "analytics" as const },
-  { icon: Compass, label: "Discovery", view: "discovery" as const },
-  { icon: FlaskConical, label: "Simulations", view: "simulations" as const },
 ]
 
 function dispatchRefresh() {
@@ -41,11 +39,7 @@ export function AppSidebar() {
         ? "Chat"
         : view === "analytics"
           ? "Analytics"
-          : view === "discovery"
-            ? "Discovery"
-            : view === "simulations"
-              ? "Simulations"
-              : "Intelligence Feed"
+          : "Intelligence Feed"
   const [isLoading, setIsLoading] = useState(false)
 
   async function handleLoadIntelligence() {
@@ -62,19 +56,13 @@ export function AppSidebar() {
       const processData = await processRes.json()
       const processed = processRes.ok ? processData.processed ?? 0 : 0
 
-      // 3. Run simulation (adds demo events if nothing from live)
-      const simRes = await fetch(api.simulate(), { method: "POST" })
-      const simData = await simRes.json()
-      const simulated = simRes.ok ? simData.count ?? 0 : 0
-
       dispatchRefresh()
       setView("feed")
 
-      const total = processed + simulated
-      if (total > 0) {
-        toast.success(`Ready! ${processed > 0 ? `${processed} from live data. ` : ""}${simulated > 0 ? `${simulated} demo events.` : ""}`)
+      if (processed > 0) {
+        toast.success(`Ready! ${processed} events from live data.`)
       } else {
-        toast.success("Pipeline complete. Check Intelligence Feed.")
+        toast.success("Pipeline complete. Load intelligence to generate signals.")
       }
     } catch {
       toast.error("Could not reach backend. Is it running on port 8000?")
@@ -127,7 +115,7 @@ export function AppSidebar() {
             {isLoading ? "Loading..." : "Load Intelligence"}
           </Button>
           <p className="mt-2 text-[10px] text-[hsl(var(--sidebar-muted))] text-center leading-tight">
-            Fetches live data, processes with AI & adds demo events
+            Fetches live data and processes with AI
           </p>
         </div>
       </div>

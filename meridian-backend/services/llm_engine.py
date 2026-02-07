@@ -14,8 +14,6 @@ from openai import OpenAI
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-PLACEHOLDER = "Not enough verified data yet."
-
 # Canonical EventSchema fields - mandatory, never omit
 EVENT_SCHEMA_FIELDS = [
     "title", "summary", "event_type", "matched_role", "impact_analysis",
@@ -56,7 +54,7 @@ def normalize_event_schema(data: Dict[str, Any]) -> Dict[str, Any]:
                     val = ", ".join(str(x).strip() for x in v)
                     break
         if val is None or val == "":
-            result[field] = PLACEHOLDER
+            result[field] = ""
         else:
             result[field] = str(val)
 
@@ -99,7 +97,7 @@ def process_raw_source(raw) -> Dict:
     """
     Process a RawSource record using OpenAI.
     Always outputs full canonical schema. Never omits fields.
-    Uses PLACEHOLDER when unknown.
+    Uses empty string when unknown.
     """
     api_key = os.getenv("OPENAI_API_KEY")
 
@@ -116,22 +114,22 @@ def process_raw_source(raw) -> Dict:
 
     fallback = {
         "title": (raw.title[:100] if raw.title else "Intelligence Update"),
-        "summary": (raw.content[:500] if raw.content else PLACEHOLDER),
+        "summary": (raw.content[:500] if raw.content else ""),
         "event_type": "Operational",
         "matched_role": fallback_role,
-        "impact_analysis": PLACEHOLDER,
-        "primary_outcome": PLACEHOLDER,
+        "impact_analysis": "",
+        "primary_outcome": "",
         "confidence": "Medium",
-        "whats_changing": (raw.content[:300] if raw.content else PLACEHOLDER),
-        "why_it_matters": PLACEHOLDER,
+        "whats_changing": (raw.content[:300] if raw.content else ""),
+        "why_it_matters": "",
         "what_to_do_now": "Review and validate with internal sources.",
-        "decision_urgency": PLACEHOLDER,
+        "decision_urgency": "",
         "recommended_next_step": "Monitor for additional information.",
         "assumptions": "Based on available public information.",
-        "source": raw.source if hasattr(raw, "source") else "External",
+        "source": (raw.source if hasattr(raw, "source") and raw.source and str(raw.source).strip() else ""),
         "messaging_instructions": "Review internal messaging guidelines. Tailor HCP discussion points to this development.",
-        "positioning_before": PLACEHOLDER,
-        "positioning_after": PLACEHOLDER,
+        "positioning_before": "",
+        "positioning_after": "",
         "agent_action_log": "[]",
     }
 
@@ -149,7 +147,7 @@ def process_raw_source(raw) -> Dict:
 
 CRITICAL: Output ONLY a valid JSON object. NO markdown, NO code blocks, NO explanations.
 You MUST include EVERY field. NEVER omit any field.
-Use "{PLACEHOLDER}" when information cannot be inferred.
+Use empty string "" when information cannot be inferred.
 
 Input:
 {input_text}
@@ -185,7 +183,7 @@ Rules:
   * Medical: regulatory, clinical, safety, HTA, adverse events, label/REMS
 - confidence: exactly one of High, Medium, Low
 - source: data origin, e.g. "Serper" or "OpenFDA"
-- Use "{PLACEHOLDER}" only when no reasonable value can be inferred
+- Use empty string "" when no reasonable value can be inferred
 - Respond with ONLY the JSON object."""
 
         logger.info(f"Processing RawSource ID {raw.id} with OpenAI")

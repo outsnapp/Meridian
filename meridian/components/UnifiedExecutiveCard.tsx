@@ -177,11 +177,17 @@ export function UnifiedExecutiveCard({ event }: UnifiedExecutiveCardProps) {
         </div>
       </div>
 
-      {/* Source, Fetched & Updated */}
+      {/* Source (only real sources), Fetched & Updated */}
       <div className="mt-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
         <div className="flex items-center gap-1.5">
-          <Clock className="h-3 w-3 shrink-0" />
-          <span>Source: {event.source}</span>
+          {event.source &&
+            event.source !== "Simulation" &&
+            event.source !== "Demo" && (
+              <>
+                <Clock className="h-3 w-3 shrink-0" />
+                <span>Source: {event.source}</span>
+              </>
+            )}
         </div>
         <div className="flex items-center gap-3">
           {event.fetched_at && (
@@ -327,7 +333,7 @@ export function UnifiedExecutiveCard({ event }: UnifiedExecutiveCardProps) {
                   </div>
                 </div>
               )}
-              {event.agent_action_log && event.agent_action_log !== "[]" && event.agent_action_log !== "Not enough verified data yet." && (
+              {event.agent_action_log && event.agent_action_log !== "[]" && String(event.agent_action_log).trim() !== "" && (
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
                     Agent action log
@@ -396,19 +402,23 @@ export function UnifiedExecutiveCard({ event }: UnifiedExecutiveCardProps) {
                       Outcome: {p.outcome}
                     </p>
                   )}
-                  <p className="mt-1.5 text-[10px] text-muted-foreground">
-                    Source: {p.source}
-                    {p.url && (
-                      <a
-                        href={p.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="ml-2 text-accent hover:underline"
-                      >
-                        View source
-                      </a>
+                  {p.source &&
+                    p.source !== "Simulation" &&
+                    p.source !== "Demo" && (
+                      <p className="mt-1.5 text-[10px] text-muted-foreground">
+                        Source: {p.source}
+                        {p.url && (
+                          <a
+                            href={p.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="ml-2 text-accent hover:underline"
+                          >
+                            View source
+                          </a>
+                        )}
+                      </p>
                     )}
-                  </p>
                 </div>
               ))}
             </div>

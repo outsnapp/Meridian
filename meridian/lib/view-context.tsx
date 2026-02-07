@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, type ReactNode } from "react"
 
-export type AppView = "feed" | "chat" | "analytics" | "discovery" | "simulations" | "settings"
+export type AppView = "feed" | "chat" | "analytics" | "settings"
 
 interface ViewContextValue {
   view: AppView

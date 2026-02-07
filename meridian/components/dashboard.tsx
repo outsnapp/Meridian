@@ -11,13 +11,12 @@ import { SharedItemsProvider } from "@/lib/shared-items-context"
 import { ViewProvider, useView } from "@/lib/view-context"
 import { ChatPanel } from "@/components/chat-panel"
 import { AnalyticsPanel } from "@/components/analytics-panel"
-import { DiscoveryPanel } from "@/components/discovery-panel"
-import { SimulationsPanel } from "@/components/simulations-panel"
 import { SettingsPanel } from "@/components/settings-panel"
 import { SettingsProvider } from "@/lib/settings-context"
 import { api } from "@/lib/api"
 import {
   apiEventToEventSchema,
+  isVerifiedSource,
   type ApiEvent,
 } from "@/lib/event-types"
 import { subDepartmentToApiRole } from "@/lib/profile-config"
@@ -68,7 +67,9 @@ function DashboardBody() {
       const res = await fetch(api.events({ role }))
       const data = await res.json()
       if (res.ok && data.events) {
-        const schemas = (data.events as ApiEvent[]).map(apiEventToEventSchema)
+        const schemas = (data.events as ApiEvent[])
+          .map(apiEventToEventSchema)
+          .filter(isVerifiedSource)
         setEvents(schemas)
         setActiveCardId((prev) => (schemas.length > 0 && !prev ? `event-${schemas[0].id}` : prev))
       } else {
@@ -184,7 +185,7 @@ function DashboardContent({
   cardRefs,
   setCardRef,
 }: {
-  view: "feed" | "chat" | "analytics" | "discovery" | "simulations"
+  view: "feed" | "chat" | "analytics" | "settings"
   events: EventSchema[]
   allEvents: EventSchema[]
   loading: boolean
@@ -235,25 +236,6 @@ function DashboardContent({
     )
   }
 
-  if (view === "discovery") {
-    return (
-      <div className="flex h-screen overflow-hidden">
-        <AppSidebar />
-        <main className="flex-1 overflow-y-auto">
-          <header className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card px-8 py-5">
-            <div>
-              <h1 className="text-lg font-bold text-foreground">Discovery</h1>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Strategic watchlist and recommended monitoring areas
-              </p>
-            </div>
-          </header>
-          <DiscoveryPanel />
-        </main>
-      </div>
-    )
-  }
-
   if (view === "settings") {
     return (
       <div className="flex h-screen overflow-hidden">
@@ -268,25 +250,6 @@ function DashboardContent({
             </div>
           </header>
           <SettingsPanel />
-        </main>
-      </div>
-    )
-  }
-
-  if (view === "simulations") {
-    return (
-      <div className="flex h-screen overflow-hidden">
-        <AppSidebar />
-        <main className="flex-1 overflow-y-auto">
-          <header className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card px-8 py-5">
-            <div>
-              <h1 className="text-lg font-bold text-foreground">Scenario Simulation</h1>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Compare strategic scenarios with impact ranges
-              </p>
-            </div>
-          </header>
-          <SimulationsPanel />
         </main>
       </div>
     )
@@ -328,10 +291,10 @@ function DashboardContent({
           ) : !hasEvents ? (
             <div className="rounded-lg border border-dashed border-border px-6 py-12 text-center">
               <p className="text-sm font-medium text-muted-foreground">
-                No events yet
+                Waiting for verified intelligence sources.
               </p>
               <p className="mt-2 text-xs text-muted-foreground">
-                Click &quot;Load Intelligence&quot; in the sidebar for demo data
+                Use Load Intelligence in the sidebar to fetch from OpenFDA, Serper, or CDSCO.
               </p>
             </div>
           ) : (
@@ -364,15 +327,17 @@ function DashboardContent({
                     </div>
                   ) : (
                     <div className="flex flex-col gap-6">
-                      {events.map((event) => (
-                        <div
-                          key={event.id}
-                          ref={(el) => setCardRef(`event-${event.id}`, el)}
-                          data-card-id={`event-${event.id}`}
-                        >
-                          <UnifiedExecutiveCard event={event} />
-                        </div>
-                      ))}
+                      {events
+                        .filter(isVerifiedSource)
+                        .map((event) => (
+                          <div
+                            key={event.id}
+                            ref={(el) => setCardRef(`event-${event.id}`, el)}
+                            data-card-id={`event-${event.id}`}
+                          >
+                            <UnifiedExecutiveCard event={event} />
+                          </div>
+                        ))}
                     </div>
                   )}
                 </div>

@@ -7,12 +7,14 @@ Main API server with endpoints for data ingestion, processing, and event retriev
 
 import os
 import logging
+from datetime import datetime, timedelta
 from typing import Optional, List
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from sqlalchemy import func, or_
 
 # Load environment variables
 load_dotenv()
@@ -25,7 +27,6 @@ from models import RawSource, Event
 from services.ingestion import ingest_all, fetch_one_live
 from services.llm_engine import process_raw_source, normalize_event_schema, answer_signal_question
 from services.precedents import get_precedents
-from services.simulator import inject_demo_events
 
 # Configure logging
 logging.basicConfig(
@@ -117,7 +118,14 @@ def process_data(db: Session = Depends(get_db)):
             try:
                 # Process with LLM
                 event_data = process_raw_source(raw)
-                
+                source = (event_data.get("source") or getattr(raw, "source", None) or "").strip()
+
+                # Reject insert if source is missing or invalid (no fallback; discard card)
+                if not _is_valid_source(source):
+                    logger.warning(f"[PROCESS] Skipping RawSource ID {raw.id}: invalid or empty source")
+                    raw.processed = True  # Mark processed so we don't retry indefinitely
+                    continue
+
                 # Create Event record (full schema)
                 event = Event(
                     title=event_data["title"],
@@ -127,7 +135,7 @@ def process_data(db: Session = Depends(get_db)):
                     tags=event_data.get("tags", "pharma,intelligence"),
                     impact=event_data.get("impact_analysis", ""),
                     suggested_action=event_data.get("what_to_do_now", ""),
-                    source=event_data.get("source", raw.source),
+                    source=source,
                     article_url=getattr(raw, "url", None) or None,
                     fetched_at=raw.fetched_at,
                     primary_outcome=event_data.get("primary_outcome"),
@@ -145,11 +153,11 @@ def process_data(db: Session = Depends(get_db)):
                     agent_action_log=event_data.get("agent_action_log"),
                 )
                 db.add(event)
-                
+
                 # Mark as processed
                 raw.processed = True
                 processed_count += 1
-                
+
             except Exception as e:
                 logger.error(f"[ERROR] Failed to process RawSource ID {raw.id}: {str(e)}")
                 continue
@@ -169,26 +177,29 @@ def process_data(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Processing error: {str(e)}")
 
 
-@app.post("/simulate")
-def simulate(db: Session = Depends(get_db)):
-    """
-    Inject demo events for hackathon demonstration.
-    Creates realistic pharma intelligence events without using external APIs.
-    
-    Returns:
-        Dictionary with count of events created
-    """
-    try:
-        logger.info("[SIMULATE] Injecting demo events...")
-        count = inject_demo_events(db)
-        return {
-            "status": "success",
-            "count": count,
-            "message": f"Successfully created {count} demo events"
-        }
-    except Exception as e:
-        logger.error(f"[ERROR] Simulation failed: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Simulation error: {str(e)}")
+# Invalid/placeholder sources: never return these; reject on insert; cleanup from DB
+INVALID_SOURCES = (
+    "Simulation",
+    "Demo",
+    "Not enough verified data yet",
+    "Not enough verified data yet.",
+    "Insufficient data",
+    "Unverified",
+    "Pending verification",
+    "Unknown source",
+    "Unknown",
+    "External",
+)
+
+
+def _is_valid_source(source: Optional[str]) -> bool:
+    """Require non-empty source not in invalid/placeholder list."""
+    if source is None:
+        return False
+    s = str(source).strip()
+    if not s:
+        return False
+    return s not in INVALID_SOURCES
 
 
 @app.get("/events")
@@ -208,7 +219,12 @@ def get_events(
         List of Event objects sorted by timestamp (most recent first)
     """
     try:
-        query = db.query(Event)
+        # Only return events with valid, non-empty source (safety net)
+        query = db.query(Event).filter(
+            Event.source.isnot(None),
+            Event.source != "",
+            ~Event.source.in_(INVALID_SOURCES),
+        )
         
         # Apply role filter
         if role:
@@ -235,6 +251,71 @@ def get_events(
     except Exception as e:
         logger.error(f"[ERROR] Failed to retrieve events: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Retrieval error: {str(e)}")
+
+
+def _normalize_urgency(raw: Optional[str]) -> str:
+    """Map decision_urgency to High, Medium, or Low for aggregation."""
+    if not raw or not str(raw).strip():
+        return "Low"
+    s = str(raw).strip().lower()
+    if s.startswith("high"):
+        return "High"
+    if s.startswith("medium") or s.startswith("moderate"):
+        return "Medium"
+    if s.startswith("low"):
+        return "Low"
+    return "Low"
+
+
+@app.get("/analytics/summary")
+def get_analytics_summary(db: Session = Depends(get_db)):
+    """
+    Return analytics summary from events in the last 30 days.
+    All counts are computed from the Event table; no mock values.
+    """
+    try:
+        cutoff = datetime.utcnow() - timedelta(days=30)
+        base = db.query(Event).filter(
+            Event.timestamp >= cutoff,
+            Event.source.isnot(None),
+            Event.source != "",
+            ~Event.source.in_(INVALID_SOURCES),
+        )
+
+        total_events_30d = base.count()
+
+        by_type = {"Risk": 0, "Expansion": 0, "Operational": 0}
+        for row in base.with_entities(Event.event_type, func.count(Event.id)).group_by(Event.event_type).all():
+            if row[0] in by_type:
+                by_type[row[0]] = row[1]
+
+        by_urgency = {"High": 0, "Medium": 0, "Low": 0}
+        urgency_rows = base.with_entities(Event.decision_urgency).all()
+        for (raw,) in urgency_rows:
+            key = _normalize_urgency(raw)
+            by_urgency[key] = by_urgency.get(key, 0) + 1
+
+        by_source = {"OpenFDA": 0, "Serper": 0, "CDSCO": 0}
+        for row in base.with_entities(Event.source, func.count(Event.id)).group_by(Event.source).all():
+            src = (row[0] or "").strip()
+            if src in by_source:
+                by_source[src] = row[1]
+
+        by_role = {"Strategy": 0, "Medical": 0, "Commercial": 0}
+        for row in base.with_entities(Event.matched_role, func.count(Event.id)).group_by(Event.matched_role).all():
+            if row[0] in by_role:
+                by_role[row[0]] = row[1]
+
+        return {
+            "total_events_30d": total_events_30d,
+            "by_type": by_type,
+            "by_urgency": by_urgency,
+            "by_source": by_source,
+            "by_role": by_role,
+        }
+    except Exception as e:
+        logger.error(f"[ERROR] Analytics summary failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 class ChatRequest(BaseModel):
@@ -395,6 +476,33 @@ def cleanup_duplicates(db: Session = Depends(get_db)):
     except Exception as e:
         db.rollback()
         logger.error(f"[ERROR] Cleanup failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/debug/cleanup-invalid-sources")
+def cleanup_invalid_sources(db: Session = Depends(get_db)):
+    """
+    Delete events with invalid/placeholder source (Simulation, Demo, unverified, etc.).
+    Run to remove junk from database. Adapts to Event table.
+    """
+    try:
+        deleted = db.query(Event).filter(
+            or_(
+                Event.source.is_(None),
+                Event.source == "",
+                Event.source.in_(INVALID_SOURCES),
+            )
+        ).delete(synchronize_session=False)
+        db.commit()
+        logger.info(f"[CLEANUP] Deleted {deleted} events with invalid source")
+        return {
+            "status": "ok",
+            "events_removed": deleted,
+            "message": f"Deleted {deleted} events with invalid or placeholder source",
+        }
+    except Exception as e:
+        db.rollback()
+        logger.error(f"[ERROR] Cleanup invalid sources failed: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

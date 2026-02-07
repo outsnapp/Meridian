@@ -134,11 +134,17 @@ export function IntelligenceCard({
         </TooltipProvider>
       </div>
 
-      {/* Footer */}
+      {/* Footer - hide source badge for Simulation/Demo; no fallback */}
       <div className="mt-5 flex items-center justify-between text-[11px] text-muted-foreground">
         <div className="flex items-center gap-1.5">
-          <Clock className="h-3 w-3" />
-          <span>Source: {source}</span>
+          {source &&
+            source !== "Simulation" &&
+            source !== "Demo" && (
+              <>
+                <Clock className="h-3 w-3" />
+                <span>Source: {source}</span>
+              </>
+            )}
         </div>
         <span>Updated: {date}</span>
       </div>
