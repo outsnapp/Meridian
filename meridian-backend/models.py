@@ -130,13 +130,17 @@ class FinancialProfile(Base):
     """
     Financial data for pharma companies.
     Used by risk engine to compute loss estimates.
+    All revenue stored in display form; normalized to USD millions internally for loss calculation.
     """
     __tablename__ = "financial_profiles"
     
     id = Column(Integer, primary_key=True, index=True)
     company = Column(String, nullable=False, unique=True, index=True)
-    annual_revenue = Column(Float, nullable=False)  # In currency units (e.g. Crores or USD millions)
+    annual_revenue = Column(Float, nullable=False)  # In original units (see currency + unit_scale)
     drug_revenue_share = Column(Float, nullable=False)  # 0–1 (e.g. 0.15 = 15% of revenue from this drug category)
+    currency = Column(String(10), nullable=True)  # USD, INR, EUR
+    unit_scale = Column(String(20), nullable=True)  # thousands, millions, crores, billions
+    market = Column(String(20), nullable=True)  # US, India, EU
     last_updated = Column(DateTime, default=datetime.utcnow, nullable=False)
     
     def __repr__(self):
@@ -181,3 +185,23 @@ class RiskModel(Base):
     
     def __repr__(self):
         return f"<RiskModel(signal_id={self.signal_id}, probability={self.probability})>"
+
+
+class PredictionTracking(Base):
+    """
+    Past predictions vs actual outcomes for credibility (e.g. predicted 82 days, actual 79 days).
+    """
+    __tablename__ = "prediction_tracking"
+
+    id = Column(Integer, primary_key=True, index=True)
+    company = Column(String, nullable=False)
+    event_description = Column(String, nullable=False)
+    prediction_date = Column(DateTime, nullable=False)
+    predicted_days_min = Column(Integer, nullable=False)
+    predicted_days_max = Column(Integer, nullable=False)
+    actual_days = Column(Integer, nullable=True)
+    actual_outcome = Column(String, nullable=True)
+    outcome_date = Column(DateTime, nullable=True)
+
+    def __repr__(self):
+        return f"<PredictionTracking({self.event_description[:30]})>"

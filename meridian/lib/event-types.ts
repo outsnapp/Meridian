@@ -104,5 +104,6 @@ export function apiEventToEventSchema(event: ApiEvent): EventSchema {
     positioning_before: event.positioning_before,
     positioning_after: event.positioning_after,
     agent_action_log: event.agent_action_log,
+    company_context: (event as Record<string, unknown>).company_context as EventSchema["company_context"],
   }
 }

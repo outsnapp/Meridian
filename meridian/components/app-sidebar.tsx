@@ -1,6 +1,6 @@
 "use client"
 
-import { Rss, BarChart3, MessageCircle, Settings, Zap, ChevronDown } from "lucide-react"
+import { Rss, BarChart3, MessageCircle, Settings, Zap, ChevronDown, Map } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useState } from "react"
 import { toast } from "sonner"
@@ -20,6 +20,7 @@ const navItems = [
   { icon: Rss, label: "Intelligence Feed", view: "feed" as const },
   { icon: MessageCircle, label: "Chat", view: "chat" as const },
   { icon: BarChart3, label: "Analytics", view: "analytics" as const },
+  { icon: Map, label: "Risk Heatmap", view: "heatmap" as const },
 ]
 
 function dispatchRefresh() {
@@ -39,7 +40,9 @@ export function AppSidebar() {
         ? "Chat"
         : view === "analytics"
           ? "Analytics"
-          : "Intelligence Feed"
+          : view === "heatmap"
+            ? "Risk Heatmap"
+            : "Intelligence Feed"
   const [isLoading, setIsLoading] = useState(false)
 
   async function handleLoadIntelligence() {
@@ -117,6 +120,29 @@ export function AppSidebar() {
           <p className="mt-2 text-[10px] text-[hsl(var(--sidebar-muted))] text-center leading-tight">
             Fetches live data and processes with AI
           </p>
+        </div>
+        <div className="mt-3 px-3">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full gap-2 rounded-lg text-xs font-medium border-dashed"
+            onClick={async () => {
+              try {
+                const res = await fetch(api.demoLoadSunPharma(), { method: "POST" })
+                const data = await res.json()
+                if (res.ok && data.status === "ok") {
+                  toast.success(`Loaded ${data.events_created ?? 0} signals. Risk models updated.`)
+                  dispatchRefresh()
+                } else {
+                  toast.error(data.detail || "Load failed")
+                }
+              } catch (e) {
+                toast.error("Could not load Sun Pharma case")
+              }
+            }}
+          >
+            Load Sun Pharma Case
+          </Button>
         </div>
       </div>
 

@@ -240,9 +240,16 @@ def get_events(
         
         # Convert to canonical schema (full fields, no nulls)
         result = [normalize_event_schema(event.to_dict()) for event in events]
-        
+
+        # When demo mode is on, enrich each event with company context for UI
+        try:
+            from services.context_engine import inject_company_context
+            result = [inject_company_context(ev) for ev in result]
+        except Exception:
+            pass
+
         logger.info(f"[EVENTS] Retrieved {len(result)} events (role={role}, tags={tags})")
-        
+
         return {
             "status": "success",
             "count": len(result),
@@ -571,22 +578,56 @@ def get_signal_analysis(signal_id: int, db: Session = Depends(get_db)):
     risk_model = db.query(RiskModel).filter(RiskModel.signal_id == signal_id).first()
     
     if risk_model:
-        # Return cached analysis
+        # Return cached analysis (loss_min/loss_max in USD millions; legacy may be in INR Cr)
         try:
             methodology = json.loads(risk_model.explanation_json) if risk_model.explanation_json else {}
-        except:
+        except Exception:
             methodology = {}
-        
+        from services.financial_normalization import format_loss_usd, format_loss_with_inr, to_usd_millions
+        lm, lx = risk_model.loss_min, risk_model.loss_max
+        market = (methodology.get("market") or "India").lower()
+        show_inr = market == "india"
+        # Legacy cached rows may have loss in INR crores (no calculation_breakdown)
+        if not methodology.get("calculation_breakdown") and market == "india" and lm < 10000:
+            lm_usd = to_usd_millions(lm, "INR", "crores")
+            lx_usd = to_usd_millions(lx, "INR", "crores")
+            loss_display_min = format_loss_with_inr(lm_usd)
+            loss_display_max = format_loss_with_inr(lx_usd)
+        else:
+            loss_display_min = format_loss_with_inr(lm) if show_inr else format_loss_usd(lm)
+            loss_display_max = format_loss_with_inr(lx) if show_inr else format_loss_usd(lx)
+        scenarios = {
+            "scenario_a": {"label": "Do nothing", "loss_min": round(lm, 4), "loss_max": round(lx, 4)},
+            "scenario_b": {"label": "Act in 30 days", "loss_min": round(lm * 0.7, 4), "loss_max": round(lx * 0.7, 4)},
+            "scenario_c": {"label": "Act in 14 days", "loss_min": round(lm * 0.5, 4), "loss_max": round(lx * 0.5, 4)},
+        }
+        legacy_cr = not methodology.get("calculation_breakdown") and market == "india" and lm < 10000
+        scenario_displays = {}
+        for k, v in scenarios.items():
+            if legacy_cr:
+                vm = to_usd_millions(v["loss_min"], "INR", "crores")
+                vx = to_usd_millions(v["loss_max"], "INR", "crores")
+                smin, smax = format_loss_with_inr(vm), format_loss_with_inr(vx)
+            else:
+                smin = format_loss_with_inr(v["loss_min"]) if show_inr else format_loss_usd(v["loss_min"])
+                smax = format_loss_with_inr(v["loss_max"]) if show_inr else format_loss_usd(v["loss_max"])
+            scenario_displays[k] = {"label": v["label"], "loss_min": v["loss_min"], "loss_max": v["loss_max"], "display_min": smin, "display_max": smax}
         return {
             "status": "ok",
             "probability": risk_model.probability,
             "loss_min": risk_model.loss_min,
             "loss_max": risk_model.loss_max,
+            "loss_display_min": loss_display_min,
+            "loss_display_max": loss_display_max,
+            "loss_unit": "USD millions",
             "expected_days_min": risk_model.expected_days_min,
             "expected_days_max": risk_model.expected_days_max,
             "confidence_score": risk_model.confidence_score,
             "confidence_band": "High" if risk_model.confidence_score >= 0.7 else "Medium" if risk_model.confidence_score >= 0.4 else "Low",
-            "methodology": methodology
+            "methodology": methodology,
+            "calculation_breakdown": methodology.get("calculation_breakdown"),
+            "scenarios": scenarios,
+            "scenario_displays": scenario_displays,
         }
     
     # Compute new analysis
@@ -641,7 +682,7 @@ def recalculate_risk(request: RecalculateRequest, db: Session = Depends(get_db))
     Overwrites existing risk_models entry.
     """
     from services.risk_engine import run_risk_engine
-    
+
     try:
         result = run_risk_engine(request.signal_id, db)
         if result.get("status") == "insufficient_data":
@@ -650,6 +691,95 @@ def recalculate_risk(request: RecalculateRequest, db: Session = Depends(get_db))
     except Exception as e:
         logger.error(f"[ERROR] Recalculate failed for signal {request.signal_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Recalculation error: {str(e)}")
+
+
+@app.get("/demo/company")
+def get_demo_company():
+    """Return current demo company profile when DEMO_MODE is enabled. Otherwise empty."""
+    from services.demo_company import get_demo_company
+    profile = get_demo_company()
+    if not profile:
+        return {"status": "ok", "company": None}
+    return {"status": "ok", "company": profile}
+
+
+@app.get("/demo/status")
+def get_demo_status():
+    """Return whether demo mode is active and which company (if any)."""
+    from services.demo_company import is_demo_mode, get_demo_company_id, get_demo_company
+    active = is_demo_mode()
+    company_id = get_demo_company_id()
+    profile = get_demo_company() if active else None
+    return {
+        "status": "ok",
+        "demo_mode": active,
+        "demo_company_id": company_id,
+        "company_name": profile.get("company_name") if profile else None,
+        "markets": profile.get("markets") if profile else None,
+    }
+
+
+@app.get("/demo/prediction-tracker")
+def get_prediction_tracker(db: Session = Depends(get_db)):
+    """Return past predictions vs actual outcomes for credibility (2–3 examples)."""
+    from models import PredictionTracking
+    rows = db.query(PredictionTracking).order_by(PredictionTracking.prediction_date.desc()).limit(10).all()
+    return {
+        "status": "ok",
+        "items": [
+            {
+                "event_description": r.event_description,
+                "prediction_date": r.prediction_date.strftime("%b %Y") if r.prediction_date else None,
+                "predicted_days": f"{r.predicted_days_min}–{r.predicted_days_max}",
+                "actual_days": r.actual_days,
+                "actual_outcome": r.actual_outcome,
+                "outcome_date": r.outcome_date.strftime("%b %d, %Y") if r.outcome_date else None,
+            }
+            for r in rows
+        ],
+    }
+
+
+# Risk heatmap: plant | risk | revenue (Cr) | timeline (days)
+RISK_HEATMAP_DATA = [
+    {"plant": "Halol", "risk": "high", "revenue_cr": 420, "timeline_days": 62},
+    {"plant": "Dadra", "risk": "medium", "revenue_cr": 210, "timeline_days": 91},
+    {"plant": "Mohali", "risk": "medium", "revenue_cr": 180, "timeline_days": 78},
+    {"plant": "Karkhadi", "risk": "low", "revenue_cr": 95, "timeline_days": 120},
+]
+
+
+@app.get("/demo/risk-heatmap")
+def get_risk_heatmap():
+    """Return plant-level risk heatmap: Plant, Risk, Revenue (Cr), Timeline (days)."""
+    return {"status": "ok", "rows": RISK_HEATMAP_DATA}
+
+
+@app.post("/demo/load/sun-pharma")
+def load_sun_pharma_case_endpoint(db: Session = Depends(get_db)):
+    """
+    Load Sun Pharma case: seed historical events, financial profile, regulatory actions,
+    and intelligence signals. Optionally clears existing events. Recomputes risk models for new events.
+    """
+    from seed.sun_pharma_case import load_sun_pharma_case
+    from services.risk_engine import run_risk_engine
+
+    try:
+        result = load_sun_pharma_case(db, clear_events_first=True)
+        events = db.query(Event).filter(Event.company == "Sun Pharma").all()
+        recomputed = 0
+        for ev in events:
+            try:
+                run_risk_engine(ev.id, db)
+                recomputed += 1
+            except Exception as e:
+                logger.warning(f"[DEMO] Risk engine skip signal {ev.id}: {e}")
+        result["risk_models_recomputed"] = recomputed
+        return {"status": "ok", **result}
+    except Exception as e:
+        logger.error(f"[ERROR] Load Sun Pharma case failed: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # Error handler for uncaught exceptions

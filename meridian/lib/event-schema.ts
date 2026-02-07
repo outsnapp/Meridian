@@ -30,4 +30,15 @@ export interface EventSchema {
   positioning_before?: string
   positioning_after?: string
   agent_action_log?: string  // JSON array string
+  // Company context (when demo mode: company_name, markets, key_products, etc.)
+  company_context?: {
+    company_name?: string
+    hq?: string
+    markets?: string[]
+    exposure?: string
+    key_products?: string[]
+    product_line?: string
+    annual_revenue?: number
+    regulatory_history?: string[]
+  }
 }

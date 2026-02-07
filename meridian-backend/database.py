@@ -46,8 +46,8 @@ def init_db():
     Initialize database by creating all tables.
     Runs migrations for new columns. Called on application startup.
     """
-    from models import (RawSource, Event, HistoricalEvent, 
-                        FinancialProfile, RegulatoryAction, RiskModel)  # Import here to avoid circular imports
+    from models import (RawSource, Event, HistoricalEvent,
+                        FinancialProfile, RegulatoryAction, RiskModel, PredictionTracking)
     Base.metadata.create_all(bind=engine)
     migrate_db()
     print("[OK] Database initialized successfully")
@@ -89,3 +89,21 @@ def migrate_db():
                     pass  # Already exists
                 else:
                     print(f"[MIGRATE] Column {col_name}: {e}")
+
+    # Financial profile columns for unit-aware revenue (currency, unit_scale, market)
+    fp_columns = [
+        ("currency", "VARCHAR(10)"),
+        ("unit_scale", "VARCHAR(20)"),
+        ("market", "VARCHAR(20)"),
+    ]
+    with engine.connect() as conn:
+        for col_name, col_type in fp_columns:
+            try:
+                conn.execute(text(f"ALTER TABLE financial_profiles ADD COLUMN {col_name} {col_type}"))
+                conn.commit()
+                print(f"[MIGRATE] Added column financial_profiles.{col_name}")
+            except Exception as e:
+                if "duplicate column" in str(e).lower():
+                    pass
+                else:
+                    print(f"[MIGRATE] financial_profiles.{col_name}: {e}")

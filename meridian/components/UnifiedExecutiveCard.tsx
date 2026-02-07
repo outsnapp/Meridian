@@ -34,11 +34,23 @@ function formatFetchedAgo(iso: string): string {
 import { useRef, useState, useEffect } from "react"
 import type { EventSchema } from "@/lib/event-schema"
 
+interface CalculationBreakdown {
+  original_revenue?: string
+  conversion?: string
+  formula?: string
+  final_units?: string
+  validation_passed?: boolean
+  validation_message?: string | null
+}
+
 interface RiskAnalysis {
   status: string
   probability?: number
   loss_min?: number
   loss_max?: number
+  loss_display_min?: string
+  loss_display_max?: string
+  loss_unit?: string
   expected_days_min?: number
   expected_days_max?: number
   confidence_score?: number
@@ -48,7 +60,21 @@ interface RiskAnalysis {
     risk_basis: string
     timeline_basis: string
     confidence_basis: string
+    calculation_breakdown?: CalculationBreakdown
   }
+  calculation_breakdown?: CalculationBreakdown
+  scenarios?: {
+    scenario_a: { label: string; loss_min: number; loss_max: number }
+    scenario_b: { label: string; loss_min: number; loss_max: number }
+    scenario_c: { label: string; loss_min: number; loss_max: number }
+  }
+  scenario_displays?: {
+    scenario_a: { label: string; display_min: string; display_max: string }
+    scenario_b: { label: string; display_min: string; display_max: string }
+    scenario_c: { label: string; display_min: string; display_max: string }
+  }
+  validation_passed?: boolean
+  validation_message?: string | null
   message?: string
 }
 
@@ -130,6 +156,8 @@ export function UnifiedExecutiveCard({ event }: UnifiedExecutiveCardProps) {
             ? "Finance"
             : "Executive / Strategy"
 
+  const ctx = event.company_context
+
   return (
     <article className="rounded-xl border border-border bg-white p-6 shadow-sm dark:bg-card">
       {/* 1. Header: Title + Summary */}
@@ -139,6 +167,21 @@ export function UnifiedExecutiveCard({ event }: UnifiedExecutiveCardProps) {
       <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
         {event.summary}
       </p>
+
+      {/* Company context (when demo mode) */}
+      {ctx && (
+        <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground border-b border-border/50 pb-4">
+          {ctx.company_name && (
+            <span><strong className="text-foreground">Company:</strong> {ctx.company_name}</span>
+          )}
+          {ctx.exposure && (
+            <span><strong className="text-foreground">Exposure:</strong> {ctx.exposure}</span>
+          )}
+          {ctx.product_line && (
+            <span><strong className="text-foreground">Product Line:</strong> {ctx.product_line}</span>
+          )}
+        </div>
+      )}
 
       {/* 2. Impact Analysis (highlight box) */}
       <div className="mt-5">
@@ -165,18 +208,30 @@ export function UnifiedExecutiveCard({ event }: UnifiedExecutiveCardProps) {
         </div>
       ) : riskAnalysis?.status === "ok" ? (
         <div className="mt-5 space-y-4">
-          {/* Impact Estimation */}
+          {/* Impact Estimation — always show currency + scale, never raw numbers */}
           {riskAnalysis.loss_min != null && riskAnalysis.loss_max != null && (
             <div className="rounded-lg border border-border bg-card p-4">
               <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">
                 📊 Financial Impact Estimation
               </p>
               <p className="text-lg font-semibold text-card-foreground">
-                ${riskAnalysis.loss_min.toLocaleString()} – ${riskAnalysis.loss_max.toLocaleString()}
+                {riskAnalysis.loss_display_min && riskAnalysis.loss_display_max
+                  ? `${riskAnalysis.loss_display_min} – ${riskAnalysis.loss_display_max}`
+                  : `$${(riskAnalysis.loss_min / 1).toLocaleString()}M – $${(riskAnalysis.loss_max / 1).toLocaleString()}M`}
               </p>
+              {riskAnalysis.loss_unit && (
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  All values in {riskAnalysis.loss_unit} (converted for display)
+                </p>
+              )}
               {riskAnalysis.confidence_band && (
                 <p className="text-xs text-muted-foreground mt-1">
                   Confidence: {riskAnalysis.confidence_band}
+                </p>
+              )}
+              {riskAnalysis.validation_passed === false && riskAnalysis.validation_message && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 mt-1.5">
+                  ⚠ {riskAnalysis.validation_message}
                 </p>
               )}
             </div>
@@ -209,7 +264,39 @@ export function UnifiedExecutiveCard({ event }: UnifiedExecutiveCardProps) {
             </div>
           )}
 
-          {/* Methodology (expandable) */}
+          {/* Counterfactual: Scenario A (100%) / B (70%) / C (50%) — unit-aware display */}
+          {riskAnalysis.scenarios && (
+            <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/30 dark:bg-amber-950/20 p-4">
+              <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-3">
+                If company does nothing vs acts early (Scenario A / B / C)
+              </p>
+              <div className="space-y-2 text-sm">
+                <p className="text-card-foreground">
+                  <strong>Scenario A — {riskAnalysis.scenarios.scenario_a.label}:</strong>{" "}
+                  Loss{" "}
+                  {riskAnalysis.scenario_displays?.scenario_a
+                    ? `${riskAnalysis.scenario_displays.scenario_a.display_min} – ${riskAnalysis.scenario_displays.scenario_a.display_max}`
+                    : `$${riskAnalysis.scenarios.scenario_a.loss_min.toLocaleString()}M – $${riskAnalysis.scenarios.scenario_a.loss_max.toLocaleString()}M`}
+                </p>
+                <p className="text-card-foreground">
+                  <strong>Scenario B — {riskAnalysis.scenarios.scenario_b.label}:</strong>{" "}
+                  Loss{" "}
+                  {riskAnalysis.scenario_displays?.scenario_b
+                    ? `${riskAnalysis.scenario_displays.scenario_b.display_min} – ${riskAnalysis.scenario_displays.scenario_b.display_max}`
+                    : `$${riskAnalysis.scenarios.scenario_b.loss_min.toLocaleString()}M – $${riskAnalysis.scenarios.scenario_b.loss_max.toLocaleString()}M`}
+                </p>
+                <p className="text-card-foreground">
+                  <strong>Scenario C — {riskAnalysis.scenarios.scenario_c.label}:</strong>{" "}
+                  Loss{" "}
+                  {riskAnalysis.scenario_displays?.scenario_c
+                    ? `${riskAnalysis.scenario_displays.scenario_c.display_min} – ${riskAnalysis.scenario_displays.scenario_c.display_max}`
+                    : `$${riskAnalysis.scenarios.scenario_c.loss_min.toLocaleString()}M – $${riskAnalysis.scenarios.scenario_c.loss_max.toLocaleString()}M`}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Methodology (expandable) — includes Original revenue, Conversion, Formula, Final units */}
           {riskAnalysis.methodology && (
             <div className="rounded-lg border border-border bg-muted/10 p-4">
               <button
@@ -224,6 +311,36 @@ export function UnifiedExecutiveCard({ event }: UnifiedExecutiveCardProps) {
               </button>
               {methodologyExpanded && (
                 <div className="mt-3 space-y-3 text-sm text-card-foreground leading-relaxed">
+                  {(riskAnalysis.calculation_breakdown ?? riskAnalysis.methodology.calculation_breakdown) && (
+                    <div className="rounded-md border border-border bg-background p-3 space-y-2 mb-3">
+                      <p className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">
+                        Calculation breakdown
+                      </p>
+                      {(() => {
+                        const b = riskAnalysis.calculation_breakdown ?? riskAnalysis.methodology.calculation_breakdown
+                        if (!b) return null
+                        return (
+                          <>
+                            {b.original_revenue && (
+                              <p><strong>Original revenue:</strong> {b.original_revenue}</p>
+                            )}
+                            {b.conversion && (
+                              <p><strong>Conversion:</strong> {b.conversion}</p>
+                            )}
+                            {b.formula && (
+                              <p><strong>Formula:</strong> {b.formula}</p>
+                            )}
+                            {b.final_units && (
+                              <p><strong>Final units:</strong> {b.final_units}</p>
+                            )}
+                            {b.validation_passed === false && b.validation_message && (
+                              <p className="text-amber-600 dark:text-amber-400 text-xs">⚠ {b.validation_message}</p>
+                            )}
+                          </>
+                        )
+                      })()}
+                    </div>
+                  )}
                   <div>
                     <p className="font-semibold text-xs uppercase tracking-wider text-muted-foreground mb-1">
                       Financial Basis
@@ -475,10 +592,13 @@ export function UnifiedExecutiveCard({ event }: UnifiedExecutiveCardProps) {
           </div>
         )}
 
-        {/* 11. Similar Past Events (historical precedent) */}
+        {/* 11. Supporting Evidence — 3 similar FDA cases with links and outcomes */}
         <div className="mb-5">
-          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">
-            Similar Past Events
+          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1">
+            Supporting Evidence
+          </p>
+          <p className="text-[11px] text-muted-foreground mb-2">
+            3 similar FDA cases — dates, outcomes, links
           </p>
           {!precedentsFetched ? (
             <Button
@@ -493,19 +613,24 @@ export function UnifiedExecutiveCard({ event }: UnifiedExecutiveCardProps) {
               ) : (
                 <History className="h-3.5 w-3.5" />
               )}
-              {precedentsLoading ? "Searching..." : "See similar past events"}
+              {precedentsLoading ? "Loading..." : "Load supporting evidence"}
             </Button>
           ) : precedentsMessage ? (
             <p className="text-sm text-muted-foreground">{precedentsMessage}</p>
           ) : precedents.length > 0 ? (
             <div className="space-y-3">
-              {precedents.map((p, i) => (
+              {precedents.slice(0, 3).map((p, i) => (
                 <div
                   key={i}
                   className="rounded-md border border-border bg-muted/20 dark:bg-muted/10 px-4 py-3"
                 >
+                  {p.year && (
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-0.5">
+                      {p.year}
+                    </p>
+                  )}
                   <p className="text-sm font-medium text-card-foreground">
-                    {p.year ? `${p.year} – ` : ""}{p.title}
+                    {p.title}
                   </p>
                   <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                     {p.what_happened}

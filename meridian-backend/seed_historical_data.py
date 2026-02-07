@@ -12,28 +12,28 @@ from random import randint, uniform, choice
 from database import SessionLocal, init_db
 from models import HistoricalEvent, FinancialProfile, RegulatoryAction, Event
 
-# Top 20 pharma companies with realistic financials
+# Top 20 pharma companies: revenue in display units (USD millions or INR crores per currency/unit_scale)
 COMPANIES = [
-    {"name": "Pfizer", "revenue": 58496, "drug_share": 0.12},
-    {"name": "Johnson & Johnson", "revenue": 52582, "drug_share": 0.15},
-    {"name": "Roche", "revenue": 63285, "drug_share": 0.18},
-    {"name": "Novartis", "revenue": 51626, "drug_share": 0.14},
-    {"name": "Merck", "revenue": 48704, "drug_share": 0.16},
-    {"name": "AbbVie", "revenue": 54318, "drug_share": 0.22},
-    {"name": "Sanofi", "revenue": 43544, "drug_share": 0.13},
-    {"name": "GSK", "revenue": 37885, "drug_share": 0.11},
-    {"name": "AstraZeneca", "revenue": 44350, "drug_share": 0.17},
-    {"name": "Bristol Myers Squibb", "revenue": 46385, "drug_share": 0.19},
-    {"name": "Eli Lilly", "revenue": 28541, "drug_share": 0.21},
-    {"name": "Amgen", "revenue": 26276, "drug_share": 0.24},
-    {"name": "Gilead Sciences", "revenue": 27327, "drug_share": 0.20},
-    {"name": "Takeda", "revenue": 30285, "drug_share": 0.16},
-    {"name": "Bayer", "revenue": 46864, "drug_share": 0.09},
-    {"name": "Boehringer Ingelheim", "revenue": 23266, "drug_share": 0.18},
-    {"name": "Lupin", "revenue": 21000, "drug_share": 0.15},
-    {"name": "Dr Reddy's", "revenue": 18500, "drug_share": 0.12},
-    {"name": "Sun Pharma", "revenue": 19200, "drug_share": 0.14},
-    {"name": "Cipla", "revenue": 17800, "drug_share": 0.13},
+    {"name": "Pfizer", "revenue": 58496, "drug_share": 0.12, "currency": "USD", "unit_scale": "millions", "market": "US"},
+    {"name": "Johnson & Johnson", "revenue": 52582, "drug_share": 0.15, "currency": "USD", "unit_scale": "millions", "market": "US"},
+    {"name": "Roche", "revenue": 63285, "drug_share": 0.18, "currency": "USD", "unit_scale": "millions", "market": "EU"},
+    {"name": "Novartis", "revenue": 51626, "drug_share": 0.14, "currency": "USD", "unit_scale": "millions", "market": "EU"},
+    {"name": "Merck", "revenue": 48704, "drug_share": 0.16, "currency": "USD", "unit_scale": "millions", "market": "US"},
+    {"name": "AbbVie", "revenue": 54318, "drug_share": 0.22, "currency": "USD", "unit_scale": "millions", "market": "US"},
+    {"name": "Sanofi", "revenue": 43544, "drug_share": 0.13, "currency": "USD", "unit_scale": "millions", "market": "EU"},
+    {"name": "GSK", "revenue": 37885, "drug_share": 0.11, "currency": "USD", "unit_scale": "millions", "market": "EU"},
+    {"name": "AstraZeneca", "revenue": 44350, "drug_share": 0.17, "currency": "USD", "unit_scale": "millions", "market": "EU"},
+    {"name": "Bristol Myers Squibb", "revenue": 46385, "drug_share": 0.19, "currency": "USD", "unit_scale": "millions", "market": "US"},
+    {"name": "Eli Lilly", "revenue": 28541, "drug_share": 0.21, "currency": "USD", "unit_scale": "millions", "market": "US"},
+    {"name": "Amgen", "revenue": 26276, "drug_share": 0.24, "currency": "USD", "unit_scale": "millions", "market": "US"},
+    {"name": "Gilead Sciences", "revenue": 27327, "drug_share": 0.20, "currency": "USD", "unit_scale": "millions", "market": "US"},
+    {"name": "Takeda", "revenue": 30285, "drug_share": 0.16, "currency": "USD", "unit_scale": "millions", "market": "EU"},
+    {"name": "Bayer", "revenue": 46864, "drug_share": 0.09, "currency": "USD", "unit_scale": "millions", "market": "EU"},
+    {"name": "Boehringer Ingelheim", "revenue": 23266, "drug_share": 0.18, "currency": "USD", "unit_scale": "millions", "market": "EU"},
+    {"name": "Lupin", "revenue": 21000, "drug_share": 0.15, "currency": "INR", "unit_scale": "crores", "market": "India"},
+    {"name": "Dr Reddy's", "revenue": 18500, "drug_share": 0.12, "currency": "INR", "unit_scale": "crores", "market": "India"},
+    {"name": "Sun Pharma", "revenue": 19200, "drug_share": 0.14, "currency": "INR", "unit_scale": "crores", "market": "India"},
+    {"name": "Cipla", "revenue": 17800, "drug_share": 0.13, "currency": "INR", "unit_scale": "crores", "market": "India"},
 ]
 
 # Event types and their typical severity/outcome patterns
@@ -69,6 +69,9 @@ def seed_financial_profiles(db):
                 company=company_data["name"],
                 annual_revenue=company_data["revenue"],
                 drug_revenue_share=company_data["drug_share"],
+                currency=company_data.get("currency", "USD"),
+                unit_scale=company_data.get("unit_scale", "millions"),
+                market=company_data.get("market", "US"),
                 last_updated=datetime.utcnow()
             )
             db.add(profile)

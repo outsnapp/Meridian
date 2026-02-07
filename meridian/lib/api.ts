@@ -24,4 +24,9 @@ export const api = {
   signalAnalysis: (id: number) => `${API_BASE_URL}/signals/${id}/analysis`,
   signalExplanation: (id: number) => `${API_BASE_URL}/signals/${id}/explanation`,
   riskEngineRecalculate: () => `${API_BASE_URL}/risk-engine/recalculate`,
+  demoCompany: () => `${API_BASE_URL}/demo/company`,
+  demoStatus: () => `${API_BASE_URL}/demo/status`,
+  demoLoadSunPharma: () => `${API_BASE_URL}/demo/load/sun-pharma`,
+  demoPredictionTracker: () => `${API_BASE_URL}/demo/prediction-tracker`,
+  demoRiskHeatmap: () => `${API_BASE_URL}/demo/risk-heatmap`,
 };

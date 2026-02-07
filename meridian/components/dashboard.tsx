@@ -12,6 +12,8 @@ import { ViewProvider, useView } from "@/lib/view-context"
 import { ChatPanel } from "@/components/chat-panel"
 import { AnalyticsPanel } from "@/components/analytics-panel"
 import { SettingsPanel } from "@/components/settings-panel"
+import { RiskHeatmapPanel } from "@/components/risk-heatmap-panel"
+import { PredictionTrackerSection } from "@/components/prediction-tracker-section"
 import { SettingsProvider } from "@/lib/settings-context"
 import { api } from "@/lib/api"
 import {
@@ -56,8 +58,22 @@ function DashboardBody() {
   const [error, setError] = useState<string | null>(null)
   const [activeCardId, setActiveCardId] = useState<string | null>(null)
   const [selectedUrgency, setSelectedUrgency] = useState<UrgencyLevel | null>(null)
+  const [demoContext, setDemoContext] = useState<{ company_name?: string; markets?: string[] } | null>(null)
   const mainRef = useRef<HTMLElement>(null)
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+
+  useEffect(() => {
+    fetch(api.demoStatus())
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.demo_mode && d.company_name) {
+          setDemoContext({ company_name: d.company_name, markets: d.markets ?? ["US", "India", "EU"] })
+        } else {
+          setDemoContext(null)
+        }
+      })
+      .catch(() => setDemoContext(null))
+  }, [])
 
   const fetchEvents = useCallback(async () => {
     setLoading(true)
@@ -167,6 +183,7 @@ function DashboardBody() {
       mainRef={mainRef}
       cardRefs={cardRefs}
       setCardRef={setCardRef}
+      demoContext={demoContext}
     />
   )
 }
@@ -184,8 +201,9 @@ function DashboardContent({
   mainRef,
   cardRefs,
   setCardRef,
+  demoContext,
 }: {
-  view: "feed" | "chat" | "analytics" | "settings"
+  view: "feed" | "chat" | "analytics" | "heatmap" | "settings"
   events: EventSchema[]
   allEvents: EventSchema[]
   loading: boolean
@@ -197,6 +215,7 @@ function DashboardContent({
   mainRef: React.RefObject<HTMLElement | null>
   cardRefs: React.MutableRefObject<Map<string, HTMLDivElement>>
   setCardRef: (cardId: string, el: HTMLDivElement | null) => void
+  demoContext: { company_name?: string; markets?: string[] } | null
 }) {
   if (view === "chat") {
     return (
@@ -255,6 +274,25 @@ function DashboardContent({
     )
   }
 
+  if (view === "heatmap") {
+    return (
+      <div className="flex h-screen overflow-hidden">
+        <AppSidebar />
+        <main className="flex-1 overflow-y-auto">
+          <header className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card px-8 py-5">
+            <div>
+              <h1 className="text-lg font-bold text-foreground">Risk Heatmap</h1>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Plant-level risk, revenue exposure, and timeline
+              </p>
+            </div>
+          </header>
+          <RiskHeatmapPanel />
+        </main>
+      </div>
+    )
+  }
+
   const showReports = Boolean(selectedUrgency)
   const hasEvents = allEvents.length > 0
 
@@ -272,7 +310,19 @@ function DashboardContent({
               AI-powered intelligence for strategic decisions
             </p>
           </div>
-          <DepartmentSelector />
+          <div className="flex items-center gap-4">
+            {demoContext?.company_name && (
+              <div className="hidden sm:flex flex-col items-end text-right border-l border-border pl-4">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Analyzing: {demoContext.company_name} (Context)
+                </span>
+                <span className="text-[10px] text-muted-foreground mt-0.5">
+                  Markets: {demoContext.markets?.join(" | ") || "US | India | EU"}
+                </span>
+              </div>
+            )}
+            <DepartmentSelector />
+          </div>
         </header>
 
         {/* Main content: selection bar first, reports only after selection */}
@@ -299,6 +349,7 @@ function DashboardContent({
             </div>
           ) : (
             <>
+              <PredictionTrackerSection />
               {/* Selection bar - always shown when we have events, primary focus */}
               <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
                 <p className="mb-4 text-sm font-semibold text-foreground">
