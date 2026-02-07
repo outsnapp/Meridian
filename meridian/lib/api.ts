@@ -16,6 +16,7 @@ export const api = {
   },
   reset: () => `${API_BASE_URL}/reset`,
   chat: () => `${API_BASE_URL}/chat`,
+  summarizeThread: () => `${API_BASE_URL}/summarize-thread`,
   precedents: () => `${API_BASE_URL}/precedents`,
   analyticsSummary: () => `${API_BASE_URL}/analytics/summary`,
   debugEventSchema: () => `${API_BASE_URL}/debug/event-schema`,

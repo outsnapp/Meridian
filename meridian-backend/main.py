@@ -25,7 +25,7 @@ from models import RawSource, Event
 
 # Import services
 from services.ingestion import ingest_all, fetch_one_live
-from services.llm_engine import process_raw_source, normalize_event_schema, answer_signal_question
+from services.llm_engine import process_raw_source, normalize_event_schema, answer_signal_question, summarize_thread
 from services.precedents import get_precedents
 
 # Configure logging
@@ -315,6 +315,23 @@ def get_analytics_summary(db: Session = Depends(get_db)):
         }
     except Exception as e:
         logger.error(f"[ERROR] Analytics summary failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class SummarizeThreadRequest(BaseModel):
+    messages: List[dict]  # [{ "author": str, "text": str }, ...]
+
+
+@app.post("/summarize-thread")
+def summarize_thread_endpoint(request: SummarizeThreadRequest):
+    """
+    Generate a brief summary of the key points discussed in a thread.
+    """
+    try:
+        summary = summarize_thread(request.messages)
+        return {"summary": summary}
+    except Exception as e:
+        logger.error(f"[ERROR] Summarize thread failed: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

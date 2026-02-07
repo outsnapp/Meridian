@@ -8,7 +8,8 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useSharedItems, type SharedItem, type CardSnapshot, type ChatMessage } from "@/lib/shared-items-context"
 import { useProfile } from "@/lib/profile-context"
-import { getProfile } from "@/lib/profile-config"
+import { getProfile, PROFILES } from "@/lib/profile-config"
+import { api } from "@/lib/api"
 import {
   MessageCircle,
   Send,
@@ -33,6 +34,8 @@ export function ChatPanel() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [input, setInput] = useState("")
   const [activeTab, setActiveTab] = useState<(typeof TAB_OPTIONS)[number]>("AI Summary")
+  const [generatedBriefByThread, setGeneratedBriefByThread] = useState<Record<string, string>>({})
+  const [briefLoadingThreadId, setBriefLoadingThreadId] = useState<string | null>(null)
 
   useEffect(() => {
     if (sharedItems.length > 0 && !selectedId) {
@@ -53,6 +56,30 @@ export function ChatPanel() {
     if (!input.trim() || !selectedId) return
     addMessage(selectedId, profile.name, input.trim(), "user", profile.role)
     setInput("")
+  }
+
+  async function handleGenerateBrief() {
+    if (!selectedId) return
+    const threadMessages = getMessages(selectedId)
+    setBriefLoadingThreadId(selectedId)
+    try {
+      const res = await fetch(api.summarizeThread(), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: threadMessages.map((m) => ({ author: m.author, text: m.text })),
+        }),
+      })
+      const data = await res.json()
+      if (res.ok && data.summary != null) {
+        setGeneratedBriefByThread((prev) => ({ ...prev, [selectedId]: data.summary }))
+        setActiveTab("AI Summary")
+      }
+    } catch {
+      setGeneratedBriefByThread((prev) => ({ ...prev, [selectedId]: "Could not generate brief. Check backend." }))
+    } finally {
+      setBriefLoadingThreadId(null)
+    }
   }
 
   return (
@@ -116,20 +143,53 @@ export function ChatPanel() {
               ))}
             </div>
 
-            {/* Conversation */}
+            {/* Conversation: always show messages; AI Summary tab shows brief above when available */}
             <ScrollArea className="flex-1 p-6">
               <div className="max-w-2xl mx-auto space-y-6">
-                {messages.length === 0 ? (
-                  <div className="py-16 text-center">
-                    <p className="text-sm text-muted-foreground">
-                      No messages yet. Discuss strategic response below.
-                    </p>
-                  </div>
-                ) : (
-                  messages.map((msg) => (
-                    <TimelineMessage key={msg.id} message={msg} />
-                  ))
+                {/* Who can see this chat */}
+                {selected.sharedWithPositionIds && selected.sharedWithPositionIds.length > 0 && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Only you and: {selected.sharedWithPositionIds.map((id) => PROFILES.find((p) => p.id === id)?.role ?? id).join(", ")} can see this chat.
+                  </p>
                 )}
+                {/* AI Summary tab: show generated brief above the conversation */}
+                {activeTab === "AI Summary" && (
+                  <>
+                    {briefLoadingThreadId === selected.id ? (
+                      <div className="rounded-xl border border-border bg-card p-5">
+                        <p className="text-sm text-muted-foreground">Generating brief…</p>
+                      </div>
+                    ) : generatedBriefByThread[selected.id] ? (
+                      <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">Discussion brief — important points from this chat</p>
+                        <div className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+                          {generatedBriefByThread[selected.id]}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-dashed border-border bg-muted/30 p-4">
+                        <p className="text-sm text-muted-foreground">
+                          Click &quot;Generate Brief&quot; in the Signal Context panel to create a summary of the most important points discussed in this chat.
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
+                {/* Messages: always visible so both people see the conversation */}
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">Conversation</p>
+                  {messages.length === 0 ? (
+                    <div className="py-8 text-center rounded-lg border border-dashed border-border bg-muted/20">
+                      <p className="text-sm text-muted-foreground">No messages yet. Send a message below to start the discussion.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      {messages.map((msg) => (
+                        <TimelineMessage key={msg.id} message={msg} currentUserName={profile.name} />
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </ScrollArea>
 
@@ -183,7 +243,12 @@ export function ChatPanel() {
               </h3>
             </div>
             <ScrollArea className="flex-1">
-              <SignalContextCard item={selected} snapshot={selected.cardSnapshot} />
+              <SignalContextCard
+                item={selected}
+                snapshot={selected.cardSnapshot}
+                onGenerateBrief={handleGenerateBrief}
+                isGenerating={briefLoadingThreadId === selected.id}
+              />
             </ScrollArea>
           </>
         ) : (
@@ -249,9 +314,9 @@ function ThreadCard({
   )
 }
 
-function TimelineMessage({ message }: { message: ChatMessage }) {
+function TimelineMessage({ message, currentUserName }: { message: ChatMessage; currentUserName: string }) {
   const type = message.type ?? "user"
-  const isUser = type === "user" && message.author !== "System"
+  const isSender = type === "user" && message.author !== "System" && message.author === currentUserName
 
   if (type === "system") {
     return (
@@ -309,20 +374,20 @@ function TimelineMessage({ message }: { message: ChatMessage }) {
   }
 
   return (
-    <div className={cn("flex gap-3", isUser && "flex-row-reverse")}>
+    <div className={cn("flex gap-3", isSender && "flex-row-reverse")}>
       <Avatar className="h-8 w-8 shrink-0 border border-border">
         <AvatarFallback className="bg-muted text-muted-foreground text-xs">
           {message.author.slice(0, 2).toUpperCase()}
         </AvatarFallback>
       </Avatar>
-      <div className={cn("flex-1 max-w-[85%]", isUser && "flex flex-col items-end")}>
+      <div className={cn("flex-1 max-w-[85%]", isSender && "flex flex-col items-end")}>
         <p className="text-[10px] font-medium text-muted-foreground mb-0.5">
           {message.author}{message.role ? ` · ${message.role}` : ""}
         </p>
         <div
           className={cn(
             "rounded-2xl px-4 py-2.5 text-sm shadow-sm border",
-            isUser
+            isSender
               ? "bg-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))] border-[hsl(var(--accent))]/20 rounded-tr-md"
               : "bg-card text-foreground border-border rounded-tl-md"
           )}
@@ -335,7 +400,17 @@ function TimelineMessage({ message }: { message: ChatMessage }) {
   )
 }
 
-function SignalContextCard({ item, snapshot }: { item: SharedItem; snapshot?: CardSnapshot }) {
+function SignalContextCard({
+  item,
+  snapshot,
+  onGenerateBrief,
+  isGenerating,
+}: {
+  item: SharedItem
+  snapshot?: CardSnapshot
+  onGenerateBrief?: () => void
+  isGenerating?: boolean
+}) {
   const sn = snapshot ?? {}
   const tags = (sn.tags ?? "").split(",").filter(Boolean)
   return (
@@ -381,9 +456,16 @@ function SignalContextCard({ item, snapshot }: { item: SharedItem; snapshot?: Ca
           <p className="text-xs text-foreground mt-0.5">{sn.updated_at ? formatDate(sn.updated_at) : formatDate(item.createdAt)}</p>
         </div>
         <div className="flex flex-col gap-2 pt-2 border-t border-border">
-          <Button variant="outline" size="sm" className="w-full justify-start gap-2 rounded-lg" type="button">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-start gap-2 rounded-lg"
+            type="button"
+            onClick={onGenerateBrief}
+            disabled={isGenerating}
+          >
             <FileText className="h-3.5 w-3.5" />
-            Generate Brief
+            {isGenerating ? "Generating…" : "Generate Brief"}
           </Button>
           <Button variant="outline" size="sm" className="w-full justify-start gap-2 rounded-lg" type="button">
             <Download className="h-3.5 w-3.5" />

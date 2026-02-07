@@ -255,3 +255,38 @@ SIGNAL CONTEXT:
     except Exception as e:
         logger.error(f"[ERROR] Chat answer failed: {str(e)}")
         return f"Sorry, I encountered an error: {str(e)}"
+
+
+def summarize_thread(messages: list) -> str:
+    """
+    Summarize a discussion thread into a brief of key points.
+    messages: list of dicts with "author" and "text" keys.
+    """
+    api_key = (os.getenv("OPENAI_API_KEY") or "").strip()
+    if not api_key or api_key.startswith("sk-your-"):
+        return "Configure OPENAI_API_KEY to generate AI summaries."
+
+    if not messages:
+        return "No messages in this thread yet. Add discussion and try again."
+
+    try:
+        client = OpenAI(api_key=api_key)
+        thread_text = "\n".join(
+            f"{m.get('author', 'Unknown')}: {m.get('text', '')}" for m in messages
+        )
+        prompt = f"""You are an executive assistant. Below is a discussion thread about an intelligence signal. Write a concise brief (3–6 bullet points) summarizing the important points discussed. Focus on decisions, actions, risks, and next steps. Use clear, professional language.
+
+DISCUSSION:
+{thread_text}
+
+BRIEF:"""
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+            max_tokens=600,
+        )
+        return response.choices[0].message.content.strip() or "Could not generate summary."
+    except Exception as e:
+        logger.error(f"[ERROR] Summarize thread failed: {str(e)}")
+        return f"Summary failed: {str(e)}"
