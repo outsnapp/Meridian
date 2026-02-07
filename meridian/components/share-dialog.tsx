@@ -23,6 +23,8 @@ import {
   Link2,
 } from "lucide-react"
 import { useDepartment } from "@/lib/department-context"
+import { useProfile } from "@/lib/profile-context"
+import { subDepartmentToLegacyDepartment } from "@/lib/profile-config"
 import {
   colleagues,
   teams,
@@ -56,6 +58,8 @@ export function ShareDialog({
   signalType,
 }: ShareDialogProps) {
   const { department } = useDepartment()
+  const { profileId } = useProfile()
+  const legacyDept = subDepartmentToLegacyDepartment(profileId, department)
   const { addSharedItem } = useSharedItems()
   const cardContext = getCardContext(cardId as "biosimilar-entry" | "medicare-reimbursement")
 
@@ -70,10 +74,10 @@ export function ShareDialog({
       setSelectedRecipients([])
       setScope("impact")
       setSent(false)
-      const defaultMsg = getSmartDefaultMessage(cardId, department)
+      const defaultMsg = getSmartDefaultMessage(cardId, legacyDept)
       setMessage(defaultMsg || `Sharing: ${title}`)
     }
-  }, [open, cardId, department, title])
+  }, [open, cardId, legacyDept, title])
 
   function toggleColleague(c: Colleague) {
     setSelectedRecipients((prev) => {

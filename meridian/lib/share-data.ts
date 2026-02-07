@@ -1,4 +1,4 @@
-import type { Department } from "./department-context"
+import type { LegacyDepartment } from "./department-context"
 
 // ── Colleagues & Teams ──────────────────────────────────────────────
 
@@ -6,7 +6,7 @@ export interface Colleague {
   id: string
   name: string
   role: string
-  department: Department
+  department: LegacyDepartment
   initials: string
 }
 
@@ -67,7 +67,7 @@ const cardContexts: Record<string, CardContext> = {
   },
 }
 
-const smartMessages: Record<string, Record<Department, string>> = {
+const smartMessages: Record<string, Record<LegacyDepartment, string>> = {
   "biosimilar-entry": {
     executive:
       "Flagging this biosimilar approval — potential 12% Q4 revenue impact. We should align on pricing response before formulary lock-in.",
@@ -92,7 +92,7 @@ const smartMessages: Record<string, Record<Department, string>> = {
 
 export function getSmartDefaultMessage(
   cardId: string,
-  department: Department,
+  department: LegacyDepartment,
 ): string {
   return smartMessages[cardId]?.[department] ?? ""
 }
@@ -103,7 +103,7 @@ export function getCardContext(cardId: string): CardContext | null {
 
 // ── Share Hover Hints ───────────────────────────────────────────────
 
-const shareHints: Record<string, Record<Department, string>> = {
+const shareHints: Record<string, Record<LegacyDepartment, string>> = {
   "biosimilar-entry": {
     executive:
       "Share with Chief Strategy Officer or Executive Committee",
@@ -128,7 +128,7 @@ const shareHints: Record<string, Record<Department, string>> = {
 
 export function getShareHint(
   cardId: string,
-  department: Department,
+  department: LegacyDepartment,
 ): string {
   return shareHints[cardId]?.[department] ?? "Share with relevant stakeholders"
 }

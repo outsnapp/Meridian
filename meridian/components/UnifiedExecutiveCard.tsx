@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/tooltip"
 import { ShareDialog } from "@/components/share-dialog"
 import { useDepartment } from "@/lib/department-context"
+import { useProfile } from "@/lib/profile-context"
+import { subDepartmentToLegacyDepartment } from "@/lib/profile-config"
 import { getShareHint } from "@/lib/share-data"
 import { ArrowRight, Check, ChevronUp, Clock, RefreshCw, Share2 } from "lucide-react"
 
@@ -40,6 +42,8 @@ export function UnifiedExecutiveCard({ event }: UnifiedExecutiveCardProps) {
   const [analysisExpanded, setAnalysisExpanded] = useState(false)
   const analysisRef = useRef<HTMLDivElement>(null)
   const { department } = useDepartment()
+  const { profileId } = useProfile()
+  const legacyDept = subDepartmentToLegacyDepartment(profileId, department)
 
   function openAnalysis() {
     setAnalysisExpanded(true)
@@ -47,7 +51,7 @@ export function UnifiedExecutiveCard({ event }: UnifiedExecutiveCardProps) {
   }
   const shareHint = getShareHint(
     `event-${event.id}` as "biosimilar-entry" | "medicare-reimbursement",
-    department
+    legacyDept
   )
 
   const isRisk = event.event_type === "Risk"
@@ -226,14 +230,16 @@ export function UnifiedExecutiveCard({ event }: UnifiedExecutiveCardProps) {
           </p>
         </div>
 
-        {/* 9. Decision Urgency */}
+        {/* 9. Decision Urgency - prominent for visibility */}
         <div className="mb-5">
-          <p className="text-xs font-bold uppercase tracking-wide text-blue-600 mb-1.5">
+          <p className="text-xs font-bold uppercase tracking-wide text-blue-600 mb-2">
             Decision Urgency
           </p>
-          <p className="text-sm leading-relaxed text-card-foreground">
-            {event.decision_urgency}
-          </p>
+          <div className="rounded-md border-2 border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/30 px-4 py-3">
+            <p className="text-base font-semibold leading-relaxed text-card-foreground">
+              {event.decision_urgency}
+            </p>
+          </div>
         </div>
 
         {/* 10. Recommended Next Step (boxed) */}

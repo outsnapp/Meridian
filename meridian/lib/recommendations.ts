@@ -1,4 +1,4 @@
-import type { Department } from "./department-context"
+import type { LegacyDepartment } from "./department-context"
 
 export interface RecommendationSection {
   label: string
@@ -22,7 +22,7 @@ function r(
   }
 }
 
-const recommendations: Record<CardId, Record<Department, Recommendation>> = {
+const recommendations: Record<CardId, Record<LegacyDepartment, Recommendation>> = {
   "biosimilar-entry": {
     executive: r(
       [
@@ -295,7 +295,7 @@ const recommendations: Record<CardId, Record<Department, Recommendation>> = {
 
 export function getRecommendation(
   cardId: CardId,
-  department: Department,
+  department: LegacyDepartment,
 ): Recommendation {
   return recommendations[cardId][department]
 }

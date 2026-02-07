@@ -1,4 +1,4 @@
-import type { Department } from "./department-context"
+import type { LegacyDepartment } from "./department-context"
 
 type CardId = "biosimilar-entry" | "medicare-reimbursement"
 
@@ -9,7 +9,7 @@ export interface SuggestedQuestion {
 
 const questions: Record<
   CardId,
-  Record<Department, SuggestedQuestion[]>
+  Record<LegacyDepartment, SuggestedQuestion[]>
 > = {
   "biosimilar-entry": {
     executive: [
@@ -155,7 +155,7 @@ const questions: Record<
 
 export function getSuggestedQuestions(
   cardId: CardId | null,
-  department: Department,
+  department: LegacyDepartment,
 ): SuggestedQuestion[] {
   if (!cardId) return []
   return questions[cardId]?.[department] ?? []

@@ -4,6 +4,8 @@ import { useState, useRef, useEffect } from "react"
 import { MessageSquare, X, ChevronRight, Send, AlertTriangle, TrendingUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useDepartment } from "@/lib/department-context"
+import { useProfile } from "@/lib/profile-context"
+import { subDepartmentToLegacyDepartment } from "@/lib/profile-config"
 import { api } from "@/lib/api"
 import {
   getSuggestedQuestions,
@@ -46,9 +48,11 @@ export function ContextChatbot({ activeCardId, activeCardTitle, activeCardSignal
   const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const { department } = useDepartment()
+  const { profileId } = useProfile()
+  const legacyDept = subDepartmentToLegacyDepartment(profileId, department)
 
   const canChat = Boolean(activeEventId)
-  const suggestedQuestionsRaw = getSuggestedQuestions(activeCardId, department)
+  const suggestedQuestionsRaw = getSuggestedQuestions(activeCardId, legacyDept)
   const suggestedQuestions =
     suggestedQuestionsRaw.length > 0
       ? suggestedQuestionsRaw
@@ -61,7 +65,7 @@ export function ContextChatbot({ activeCardId, activeCardTitle, activeCardSignal
   // Reset chat when context changes
   useEffect(() => {
     setMessages([])
-  }, [activeCardId, department])
+  }, [activeCardId, legacyDept])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -75,7 +79,7 @@ export function ContextChatbot({ activeCardId, activeCardTitle, activeCardSignal
       body: JSON.stringify({
         event_id: activeEventId,
         question,
-        department,
+        department: legacyDept,
         messages: messages.map((m) => ({ role: m.role, content: m.content })),
       }),
     })
@@ -178,7 +182,7 @@ export function ContextChatbot({ activeCardId, activeCardTitle, activeCardSignal
               {signalType ?? "Signal"}
             </span>
             <span className="text-[10px] text-muted-foreground">
-              {departmentLabels[department]}
+              {departmentLabels[legacyDept]}
             </span>
           </div>
         </div>
@@ -200,7 +204,7 @@ export function ContextChatbot({ activeCardId, activeCardTitle, activeCardSignal
         <div className="flex flex-col gap-3">
           {messages.map((msg, i) => (
             <div
-              key={`msg-${activeCardId}-${department}-${i}`}
+              key={`msg-${activeCardId}-${legacyDept}-${i}`}
               className={cn(
                 "rounded-md px-3 py-2.5",
                 msg.role === "user"

@@ -7,21 +7,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { useDepartment, type Department } from "@/lib/department-context"
+import { useDepartment } from "@/lib/department-context"
+import { useProfile } from "@/lib/profile-context"
+import { getProfile } from "@/lib/profile-config"
 
 export function DepartmentSelector() {
   const { department, setDepartment } = useDepartment()
+  const { profileId } = useProfile()
+  const profile = getProfile(profileId)
+  const subDepts = profile.subDepartments
 
   return (
-    <Select value={department} onValueChange={(v) => setDepartment(v as Department)}>
+    <Select value={department} onValueChange={setDepartment}>
       <SelectTrigger className="h-8 w-52 rounded-md border-border bg-card text-xs text-foreground">
-        <SelectValue placeholder="Select department" />
+        <SelectValue placeholder="Select area" />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="executive">Executive / Strategy</SelectItem>
-        <SelectItem value="finance">Finance</SelectItem>
-        <SelectItem value="commercial">Commercial / Sales</SelectItem>
-        <SelectItem value="market-access">Market Access / Policy</SelectItem>
+        {subDepts.map((s) => (
+          <SelectItem key={s.id} value={s.id}>
+            {s.label}
+          </SelectItem>
+        ))}
       </SelectContent>
     </Select>
   )

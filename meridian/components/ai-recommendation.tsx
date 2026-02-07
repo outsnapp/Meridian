@@ -9,6 +9,8 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { useDepartment } from "@/lib/department-context"
+import { useProfile } from "@/lib/profile-context"
+import { subDepartmentToLegacyDepartment } from "@/lib/profile-config"
 import { getRecommendation } from "@/lib/recommendations"
 import { useState } from "react"
 import { cn } from "@/lib/utils"
@@ -79,7 +81,9 @@ function splitLeadSentence(content: string): [string, string | null] {
 
 export function AIRecommendation({ cardId }: AIRecommendationProps) {
   const { department } = useDepartment()
-  const rec = getRecommendation(cardId, department)
+  const { profileId } = useProfile()
+  const legacyDept = subDepartmentToLegacyDepartment(profileId, department)
+  const rec = getRecommendation(cardId, legacyDept)
   const [isOpen, setIsOpen] = useState(true)
 
   return (
@@ -93,7 +97,7 @@ export function AIRecommendation({ cardId }: AIRecommendationProps) {
               AI Recommendation
             </span>
             <span className="rounded-full bg-[hsl(var(--accent))]/10 px-2 py-0.5 text-[10px] font-medium text-[hsl(var(--accent))]">
-              {departmentLabels[department]}
+              {departmentLabels[legacyDept]}
             </span>
           </div>
           <ChevronDown

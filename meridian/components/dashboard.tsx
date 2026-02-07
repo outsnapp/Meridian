@@ -6,39 +6,57 @@ import { UnifiedExecutiveCard } from "@/components/UnifiedExecutiveCard"
 import { DepartmentSelector } from "@/components/department-selector"
 import { ContextChatbot } from "@/components/context-chatbot"
 import { DepartmentProvider, useDepartment } from "@/lib/department-context"
+import { ProfileProvider, useProfile } from "@/lib/profile-context"
 import { SharedItemsProvider } from "@/lib/shared-items-context"
 import { ViewProvider, useView } from "@/lib/view-context"
 import { ChatPanel } from "@/components/chat-panel"
 import { AnalyticsPanel } from "@/components/analytics-panel"
 import { DiscoveryPanel } from "@/components/discovery-panel"
 import { SimulationsPanel } from "@/components/simulations-panel"
+import { SettingsPanel } from "@/components/settings-panel"
+import { SettingsProvider } from "@/lib/settings-context"
 import { api } from "@/lib/api"
 import {
   apiEventToEventSchema,
-  departmentToRole,
   type ApiEvent,
 } from "@/lib/event-types"
+import { subDepartmentToApiRole } from "@/lib/profile-config"
 import type { EventSchema } from "@/lib/event-schema"
+import { getUrgencyLevel, type UrgencyLevel } from "@/lib/urgency-utils"
+import { UrgencyFilter } from "@/components/urgency-filter"
+
+function DashboardWithProfile() {
+  const { profileId } = useProfile()
+  return (
+    <SettingsProvider>
+      <DepartmentProvider profileId={profileId}>
+        <SharedItemsProvider>
+          <ViewProvider>
+            <DashboardBody />
+          </ViewProvider>
+        </SharedItemsProvider>
+      </DepartmentProvider>
+    </SettingsProvider>
+  )
+}
 
 export function Dashboard() {
   return (
-    <DepartmentProvider>
-      <SharedItemsProvider>
-        <ViewProvider>
-          <DashboardBody />
-        </ViewProvider>
-      </SharedItemsProvider>
-    </DepartmentProvider>
+    <ProfileProvider>
+      <DashboardWithProfile />
+    </ProfileProvider>
   )
 }
 
 function DashboardBody() {
   const { department } = useDepartment()
+  const { profileId } = useProfile()
   const { view } = useView()
   const [events, setEvents] = useState<EventSchema[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [activeCardId, setActiveCardId] = useState<string | null>(null)
+  const [selectedUrgency, setSelectedUrgency] = useState<UrgencyLevel | null>(null)
   const mainRef = useRef<HTMLElement>(null)
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map())
 
@@ -46,7 +64,7 @@ function DashboardBody() {
     setLoading(true)
     setError(null)
     try {
-      const role = departmentToRole(department)
+      const role = subDepartmentToApiRole(profileId, department)
       const res = await fetch(api.events({ role }))
       const data = await res.json()
       if (res.ok && data.events) {
@@ -62,7 +80,7 @@ function DashboardBody() {
     } finally {
       setLoading(false)
     }
-  }, [department])
+  }, [profileId, department])
 
   useEffect(() => {
     fetchEvents()
@@ -126,13 +144,25 @@ function DashboardBody() {
     }
   }
 
+  const urgencyCounts = { High: 0, Medium: 0, Low: 0, Other: 0 }
+  for (const e of events) {
+    urgencyCounts[getUrgencyLevel(e.decision_urgency)]++
+  }
+  const filteredEvents = selectedUrgency
+    ? events.filter((e) => getUrgencyLevel(e.decision_urgency) === selectedUrgency)
+    : []
+
   return (
     <DashboardContent
       view={view}
-      events={events}
+      events={filteredEvents}
+      allEvents={events}
       loading={loading}
       error={error}
       activeCardId={activeCardId}
+      selectedUrgency={selectedUrgency}
+      setSelectedUrgency={setSelectedUrgency}
+      urgencyCounts={urgencyCounts}
       mainRef={mainRef}
       cardRefs={cardRefs}
       setCardRef={setCardRef}
@@ -143,18 +173,26 @@ function DashboardBody() {
 function DashboardContent({
   view,
   events,
+  allEvents,
   loading,
   error,
   activeCardId,
+  selectedUrgency,
+  setSelectedUrgency,
+  urgencyCounts,
   mainRef,
   cardRefs,
   setCardRef,
 }: {
   view: "feed" | "chat" | "analytics" | "discovery" | "simulations"
   events: EventSchema[]
+  allEvents: EventSchema[]
   loading: boolean
   error: string | null
   activeCardId: string | null
+  selectedUrgency: UrgencyLevel | null
+  setSelectedUrgency: (v: UrgencyLevel | null) => void
+  urgencyCounts: { High: number; Medium: number; Low: number; Other: number }
   mainRef: React.RefObject<HTMLElement | null>
   cardRefs: React.MutableRefObject<Map<string, HTMLDivElement>>
   setCardRef: (cardId: string, el: HTMLDivElement | null) => void
@@ -216,6 +254,25 @@ function DashboardContent({
     )
   }
 
+  if (view === "settings") {
+    return (
+      <div className="flex h-screen overflow-hidden">
+        <AppSidebar />
+        <main className="flex-1 overflow-y-auto">
+          <header className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card px-8 py-5">
+            <div>
+              <h1 className="text-lg font-bold text-foreground">Settings</h1>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Profile, region, notifications, and appearance
+              </p>
+            </div>
+          </header>
+          <SettingsPanel />
+        </main>
+      </div>
+    )
+  }
+
   if (view === "simulations") {
     return (
       <div className="flex h-screen overflow-hidden">
@@ -235,6 +292,9 @@ function DashboardContent({
     )
   }
 
+  const showReports = Boolean(selectedUrgency)
+  const hasEvents = allEvents.length > 0
+
   return (
     <div className="flex h-screen overflow-hidden">
       <AppSidebar />
@@ -252,7 +312,7 @@ function DashboardContent({
           <DepartmentSelector />
         </header>
 
-        {/* Card Feed */}
+        {/* Main content: selection bar first, reports only after selection */}
         <div className="mx-auto max-w-3xl px-8 py-8">
           {loading ? (
             <div className="flex items-center justify-center py-16 text-muted-foreground">
@@ -265,43 +325,75 @@ function DashboardContent({
                 Start the backend with: uvicorn main:app --reload
               </p>
             </div>
-          ) : events.length === 0 ? (
+          ) : !hasEvents ? (
             <div className="rounded-lg border border-dashed border-border px-6 py-12 text-center">
               <p className="text-sm font-medium text-muted-foreground">
                 No events yet
               </p>
               <p className="mt-2 text-xs text-muted-foreground">
-                Click &quot;Run Simulation&quot; for demo data, or &quot;Fetch Live Data&quot; + &quot;Process with AI&quot; for real intelligence
+                Click &quot;Load Intelligence&quot; in the sidebar for demo data
               </p>
             </div>
           ) : (
-            <div className="flex flex-col gap-6">
-              {events.map((event) => (
-                <div
-                  key={event.id}
-                  ref={(el) => setCardRef(`event-${event.id}`, el)}
-                  data-card-id={`event-${event.id}`}
-                >
-                  <UnifiedExecutiveCard event={event} />
+            <>
+              {/* Selection bar - always shown when we have events, primary focus */}
+              <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+                <p className="mb-4 text-sm font-semibold text-foreground">
+                  Choose decision urgency to view reports
+                </p>
+                <UrgencyFilter
+                  selected={selectedUrgency}
+                  onSelect={setSelectedUrgency}
+                  counts={urgencyCounts}
+                />
+                {!showReports && (
+                  <p className="mt-4 text-xs text-muted-foreground">
+                    Click a button above to see reports for that urgency level
+                  </p>
+                )}
+              </div>
+
+              {/* Reports - ONLY when user has selected an urgency */}
+              {showReports && (
+                <div className="mt-8">
+                  {events.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-border px-6 py-12 text-center">
+                      <p className="text-sm font-medium text-muted-foreground">
+                        No reports with {selectedUrgency} urgency
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-6">
+                      {events.map((event) => (
+                        <div
+                          key={event.id}
+                          ref={(el) => setCardRef(`event-${event.id}`, el)}
+                          data-card-id={`event-${event.id}`}
+                        >
+                          <UnifiedExecutiveCard event={event} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </div>
       </main>
 
       <ContextChatbot
         activeCardId={activeCardId}
-        activeCardTitle={events.find((e) => `event-${e.id}` === activeCardId)?.title}
+        activeCardTitle={allEvents.find((e) => `event-${e.id}` === activeCardId)?.title}
         activeCardSignalType={
           (() => {
-            const ev = events.find((e) => `event-${e.id}` === activeCardId)
+            const ev = allEvents.find((e) => `event-${e.id}` === activeCardId)
             return ev?.event_type === "Risk" ? "Risk" : ev?.event_type === "Expansion" ? "Opportunity" : undefined
           })()
         }
         activeEventId={
           (() => {
-            const ev = events.find((e) => `event-${e.id}` === activeCardId)
+            const ev = allEvents.find((e) => `event-${e.id}` === activeCardId)
             return ev ? parseInt(ev.id, 10) : null
           })()
         }

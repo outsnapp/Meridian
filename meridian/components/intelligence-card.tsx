@@ -11,6 +11,8 @@ import {
 import { AIRecommendation } from "@/components/ai-recommendation"
 import { ShareDialog } from "@/components/share-dialog"
 import { useDepartment } from "@/lib/department-context"
+import { useProfile } from "@/lib/profile-context"
+import { subDepartmentToLegacyDepartment } from "@/lib/profile-config"
 import { getShareHint } from "@/lib/share-data"
 import { ArrowRight, Clock, RefreshCw, Share2 } from "lucide-react"
 import { useState } from "react"
@@ -60,7 +62,9 @@ export function IntelligenceCard({
   const isCritical = type === "critical-risk"
   const [shareOpen, setShareOpen] = useState(false)
   const { department } = useDepartment()
-  const shareHint = getShareHint(cardId as "biosimilar-entry" | "medicare-reimbursement", department)
+  const { profileId } = useProfile()
+  const legacyDept = subDepartmentToLegacyDepartment(profileId, department)
+  const shareHint = getShareHint(cardId as "biosimilar-entry" | "medicare-reimbursement", legacyDept)
 
   return (
     <article className="rounded-lg border border-border bg-card p-6 shadow-sm">
