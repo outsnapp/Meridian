@@ -17,6 +17,7 @@ export const api = {
   },
   reset: () => `${API_BASE_URL}/reset`,
   chat: () => `${API_BASE_URL}/chat`,
+  precedents: () => `${API_BASE_URL}/precedents`,
   debugEventSchema: () => `${API_BASE_URL}/debug/event-schema`,
   cleanupDuplicates: () => `${API_BASE_URL}/debug/cleanup-duplicates`,
 };

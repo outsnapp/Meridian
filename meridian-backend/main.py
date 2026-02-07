@@ -24,6 +24,7 @@ from models import RawSource, Event
 # Import services
 from services.ingestion import ingest_all, fetch_one_live
 from services.llm_engine import process_raw_source, normalize_event_schema, answer_signal_question
+from services.precedents import get_precedents
 from services.simulator import inject_demo_events
 
 # Configure logging
@@ -272,6 +273,28 @@ def chat(request: ChatRequest, db: Session = Depends(get_db)):
         conversation_history=messages[-10:],  # last 10 exchanges for context
     )
     return {"answer": answer}
+
+
+class PrecedentsRequest(BaseModel):
+    event_id: int
+
+
+@app.post("/precedents")
+def precedents(request: PrecedentsRequest, db: Session = Depends(get_db)):
+    """
+    Fetch similar past events (historical precedent) for a signal.
+    Uses Serper + OpenFDA with date filters; LLM only ranks/summarizes retrieved articles.
+    """
+    event = db.query(Event).filter(Event.id == request.event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    d = event.to_dict()
+    try:
+        result = get_precedents(d)
+        return {"status": "success", **result}
+    except Exception as e:
+        logger.error(f"[ERROR] Precedents failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/test/live-event")

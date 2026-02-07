@@ -127,6 +127,118 @@ def fetch_from_openfda() -> List[Dict]:
         return []
 
 
+def fetch_serper_historical(query: str, num: int = 10) -> List[Dict]:
+    """
+    Fetch historical pharma news from Serper with date-bounded query.
+    Uses authoritative domains (FDA, Reuters, EMA, CMS) via query.
+    Query should include key terms; we append year range for last 3-5 years.
+    """
+    api_key = os.getenv("SERPER_API_KEY")
+    if not api_key or api_key == "your-serper-key-here":
+        logger.warning("Serper API key not configured, skipping historical fetch")
+        return []
+
+    # Build query with site filters for authoritative sources
+    # (site:fda.gov OR site:reuters.com OR site:ema.europa.eu OR site:cms.gov) + user terms
+    domain_part = "(site:fda.gov OR site:reuters.com OR site:ema.europa.eu OR site:cms.gov)"
+    year_terms = "2020 2021 2022 2023 2024"
+    full_query = f"{query} {domain_part} {year_terms}"
+
+    try:
+        url = "https://google.serper.dev/news"
+        headers = {"X-API-KEY": api_key, "Content-Type": "application/json"}
+        payload = {"q": full_query, "num": num}
+        logger.info(f"[PRECEDENTS] Serper historical query: {full_query[:100]}...")
+        response = requests.post(url, json=payload, headers=headers, timeout=15)
+        response.raise_for_status()
+        data = response.json()
+        results = []
+        for item in data.get("news", []):
+            results.append({
+                "title": item.get("title", "Untitled"),
+                "content": item.get("snippet", ""),
+                "url": item.get("link", ""),
+                "source": "Serper",
+                "date": item.get("date", ""),
+            })
+        logger.info(f"[OK] Serper historical: {len(results)} items")
+        return results
+    except Exception as e:
+        logger.error(f"[ERROR] Serper historical: {str(e)}")
+        return []
+
+
+def fetch_serper_simple(query: str, num: int = 10) -> List[Dict]:
+    """
+    Serper search without domain filter (fallback when historical returns few results).
+    """
+    api_key = os.getenv("SERPER_API_KEY")
+    if not api_key or api_key == "your-serper-key-here":
+        return []
+
+    full_query = f"{query} pharmaceutical FDA 2020 2021 2022 2023"
+    try:
+        url = "https://google.serper.dev/news"
+        headers = {"X-API-KEY": api_key, "Content-Type": "application/json"}
+        payload = {"q": full_query, "num": num}
+        response = requests.post(url, json=payload, headers=headers, timeout=15)
+        response.raise_for_status()
+        data = response.json()
+        return [
+            {
+                "title": item.get("title", "Untitled"),
+                "content": item.get("snippet", ""),
+                "url": item.get("link", ""),
+                "source": "Serper",
+                "date": item.get("date", ""),
+            }
+            for item in data.get("news", [])
+        ]
+    except Exception as e:
+        logger.error(f"[ERROR] Serper simple: {str(e)}")
+        return []
+
+
+def fetch_openfda_historical(limit: int = 10) -> List[Dict]:
+    """
+    Fetch historical adverse events from OpenFDA (last 5 years).
+    """
+    try:
+        from datetime import datetime, timedelta
+        end = datetime.utcnow()
+        start = end - timedelta(days=5 * 365)
+        start_str = start.strftime("%Y%m%d")
+        end_str = end.strftime("%Y%m%d")
+        date_filter = f"receivedate:[{start_str} TO {end_str}]"
+
+        url = "https://api.fda.gov/drug/event.json"
+        params = {"limit": limit, "search": date_filter}
+
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        results = []
+        for event in data.get("results", []):
+            patient = event.get("patient", {})
+            drugs = patient.get("drug", [])
+            reactions = patient.get("reaction", [])
+            drug_names = [d.get("medicinalproduct", "Unknown") for d in drugs[:2]]
+            reaction_terms = [r.get("reactionmeddrapt", "") for r in reactions[:3]]
+            received = event.get("receivedate", "")[:4] if event.get("receivedate") else ""
+            results.append({
+                "title": f"FDA Adverse Event: {', '.join(drug_names)}",
+                "content": f"Reactions: {', '.join(reaction_terms)}. Serious: {event.get('serious','0')}.",
+                "url": "https://open.fda.gov/apis/drug/event/",
+                "source": "OpenFDA",
+                "date": received,
+            })
+        logger.info(f"[OK] OpenFDA historical: {len(results)} items")
+        return results
+    except Exception as e:
+        logger.error(f"[ERROR] OpenFDA historical: {str(e)}")
+        return []
+
+
 def fetch_one_live() -> Optional[Dict]:
     """
     Fetch a single item from live sources (Serper first, then OpenFDA) for testing.

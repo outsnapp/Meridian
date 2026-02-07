@@ -13,7 +13,8 @@ import { useDepartment } from "@/lib/department-context"
 import { useProfile } from "@/lib/profile-context"
 import { subDepartmentToLegacyDepartment } from "@/lib/profile-config"
 import { getShareHint } from "@/lib/share-data"
-import { ArrowRight, Check, ChevronUp, Clock, RefreshCw, Share2 } from "lucide-react"
+import { api } from "@/lib/api"
+import { ArrowRight, Check, ChevronUp, Clock, History, Loader2, RefreshCw, Share2 } from "lucide-react"
 
 function formatFetchedAgo(iso: string): string {
   try {
@@ -40,10 +41,36 @@ interface UnifiedExecutiveCardProps {
 export function UnifiedExecutiveCard({ event }: UnifiedExecutiveCardProps) {
   const [shareOpen, setShareOpen] = useState(false)
   const [analysisExpanded, setAnalysisExpanded] = useState(false)
+  const [precedents, setPrecedents] = useState<Array<{ title: string; year: string; what_happened: string; outcome: string; source: string; url?: string }>>([])
+  const [precedentsLoading, setPrecedentsLoading] = useState(false)
+  const [precedentsFetched, setPrecedentsFetched] = useState(false)
+  const [precedentsMessage, setPrecedentsMessage] = useState<string | null>(null)
   const analysisRef = useRef<HTMLDivElement>(null)
   const { department } = useDepartment()
   const { profileId } = useProfile()
   const legacyDept = subDepartmentToLegacyDepartment(profileId, department)
+
+  async function fetchPrecedents() {
+    if (precedentsFetched || precedentsLoading) return
+    setPrecedentsLoading(true)
+    try {
+      const res = await fetch(api.precedents(), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event_id: parseInt(event.id, 10) }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setPrecedents(data.precedents ?? [])
+        setPrecedentsMessage(data.message ?? null)
+      }
+    } catch {
+      setPrecedentsMessage("Could not load historical precedents.")
+    } finally {
+      setPrecedentsLoading(false)
+      setPrecedentsFetched(true)
+    }
+  }
 
   function openAnalysis() {
     setAnalysisExpanded(true)
@@ -103,22 +130,18 @@ export function UnifiedExecutiveCard({ event }: UnifiedExecutiveCardProps) {
         </div>
       </div>
 
-      {/* Recommended Action - full-width box */}
+      {/* Recommended Action - full-width box (full text visible) */}
       <div className="mt-5">
-        <Button
-          variant="default"
-          size="sm"
-          className="w-full justify-between gap-2 rounded-md px-4 py-3 text-xs font-medium h-auto"
-        >
-          <span className="flex-1 text-left truncate">
-            {event.what_to_do_now.split(".")[0] || event.what_to_do_now}
+        <div className="flex w-full items-start gap-3 rounded-md bg-primary px-4 py-3 text-primary-foreground">
+          <span className="min-w-0 flex-1 whitespace-normal text-left text-sm font-medium leading-relaxed">
+            {event.what_to_do_now}
           </span>
           {isRisk ? (
-            <RefreshCw className="h-3.5 w-3.5 shrink-0" />
+            <RefreshCw className="h-4 w-4 shrink-0 mt-0.5" />
           ) : (
-            <ArrowRight className="h-3.5 w-3.5 shrink-0" />
+            <ArrowRight className="h-4 w-4 shrink-0 mt-0.5" />
           )}
-        </Button>
+        </div>
         {/* Share button */}
         <div className="mt-3 flex justify-end">
           <TooltipProvider delayDuration={300}>
@@ -254,7 +277,66 @@ export function UnifiedExecutiveCard({ event }: UnifiedExecutiveCardProps) {
           </div>
         </div>
 
-        {/* 11. Assumptions & Signals (muted) */}
+        {/* 11. Similar Past Events (historical precedent) */}
+        <div className="mb-5">
+          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">
+            Similar Past Events
+          </p>
+          {!precedentsFetched ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={fetchPrecedents}
+              disabled={precedentsLoading}
+            >
+              {precedentsLoading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <History className="h-3.5 w-3.5" />
+              )}
+              {precedentsLoading ? "Searching..." : "See similar past events"}
+            </Button>
+          ) : precedentsMessage ? (
+            <p className="text-sm text-muted-foreground">{precedentsMessage}</p>
+          ) : precedents.length > 0 ? (
+            <div className="space-y-3">
+              {precedents.map((p, i) => (
+                <div
+                  key={i}
+                  className="rounded-md border border-border bg-muted/20 dark:bg-muted/10 px-4 py-3"
+                >
+                  <p className="text-sm font-medium text-card-foreground">
+                    {p.year ? `${p.year} – ` : ""}{p.title}
+                  </p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    {p.what_happened}
+                  </p>
+                  {p.outcome && (
+                    <p className="mt-1 text-xs font-medium text-card-foreground">
+                      Outcome: {p.outcome}
+                    </p>
+                  )}
+                  <p className="mt-1.5 text-[10px] text-muted-foreground">
+                    Source: {p.source}
+                    {p.url && (
+                      <a
+                        href={p.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="ml-2 text-accent hover:underline"
+                      >
+                        View source
+                      </a>
+                    )}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        {/* 12. Assumptions & Signals (muted) */}
         <div>
           <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground/70 mb-1.5">
             Assumptions & Signals
