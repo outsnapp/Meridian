@@ -1,0 +1,143 @@
+"use client"
+
+import { Rss, BarChart3, Compass, FlaskConical, MessageCircle, Settings, User, Zap } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { useState } from "react"
+import { toast } from "sonner"
+import { Button } from "@/components/ui/button"
+import { api } from "@/lib/api"
+import { useView } from "@/lib/view-context"
+
+const navItems = [
+  { icon: Rss, label: "Intelligence Feed", view: "feed" as const },
+  { icon: MessageCircle, label: "Chat", view: "chat" as const },
+  { icon: BarChart3, label: "Analytics", view: "analytics" as const },
+  { icon: Compass, label: "Discovery", view: "discovery" as const },
+  { icon: FlaskConical, label: "Simulations", view: "simulations" as const },
+]
+
+function dispatchRefresh() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("meridian:refresh-events"))
+  }
+}
+
+export function AppSidebar() {
+  const { view, setView } = useView()
+  const activeItem =
+    view === "chat"
+      ? "Chat"
+      : view === "analytics"
+        ? "Analytics"
+        : view === "discovery"
+          ? "Discovery"
+          : view === "simulations"
+            ? "Simulations"
+            : "Intelligence Feed"
+  const [isLoading, setIsLoading] = useState(false)
+
+  async function handleLoadIntelligence() {
+    if (isLoading) return
+    setIsLoading(true)
+    toast.info("Loading intelligence pipeline...")
+    try {
+      // 1. Fetch live data
+      const ingestRes = await fetch(api.ingestLive(), { method: "POST" })
+      await ingestRes.json()
+
+      // 2. Process with AI
+      const processRes = await fetch(api.process(), { method: "POST" })
+      const processData = await processRes.json()
+      const processed = processRes.ok ? processData.processed ?? 0 : 0
+
+      // 3. Run simulation (adds demo events if nothing from live)
+      const simRes = await fetch(api.simulate(), { method: "POST" })
+      const simData = await simRes.json()
+      const simulated = simRes.ok ? simData.count ?? 0 : 0
+
+      dispatchRefresh()
+      setView("feed")
+
+      const total = processed + simulated
+      if (total > 0) {
+        toast.success(`Ready! ${processed > 0 ? `${processed} from live data. ` : ""}${simulated > 0 ? `${simulated} demo events.` : ""}`)
+      } else {
+        toast.success("Pipeline complete. Check Intelligence Feed.")
+      }
+    } catch {
+      toast.error("Could not reach backend. Is it running on port 8000?")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <aside className="flex h-screen w-56 flex-col justify-between bg-[hsl(var(--sidebar-background))] text-[hsl(var(--sidebar-foreground))]">
+      <div>
+        <div className="px-5 py-6">
+          <h1 className="text-sm font-bold tracking-widest text-[hsl(var(--sidebar-primary))]">
+            MERIDIAN
+          </h1>
+        </div>
+
+        <nav className="flex flex-col gap-1 px-3">
+          {navItems.map((item) => {
+            const isActive = activeItem === item.label
+            return (
+              <button
+                key={item.label}
+                type="button"
+                onClick={() => setView(item.view)}
+                className={cn(
+                  "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
+                  isActive
+                    ? "bg-[hsl(var(--sidebar-primary))] text-[hsl(var(--sidebar-primary-foreground))]"
+                    : "text-[hsl(var(--sidebar-muted))] hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-accent-foreground))]"
+                )}
+              >
+                <item.icon className="h-4 w-4" />
+                {item.label}
+              </button>
+            )
+          })}
+        </nav>
+
+        {/* Load Intelligence - single consolidated action */}
+        <div className="mt-6 px-3">
+          <Button
+            variant="default"
+            size="lg"
+            onClick={handleLoadIntelligence}
+            disabled={isLoading}
+            className="w-full gap-2.5 h-11 rounded-lg font-medium shadow-sm bg-[hsl(var(--sidebar-primary))] hover:bg-[hsl(var(--sidebar-primary))]/90 text-[hsl(var(--sidebar-primary-foreground))]"
+          >
+            <Zap className={cn("h-4 w-4 shrink-0", isLoading && "animate-pulse")} />
+            {isLoading ? "Loading..." : "Load Intelligence"}
+          </Button>
+          <p className="mt-2 text-[10px] text-[hsl(var(--sidebar-muted))] text-center leading-tight">
+            Fetches live data, processes with AI & adds demo events
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-1 px-3 pb-5">
+        <button
+          type="button"
+          className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-[hsl(var(--sidebar-muted))] hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-accent-foreground))] transition-colors"
+        >
+          <Settings className="h-4 w-4" />
+          Settings
+        </button>
+        <div className="flex items-center gap-3 px-3 py-2.5">
+          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[hsl(var(--sidebar-accent))]">
+            <User className="h-3.5 w-3.5 text-[hsl(var(--sidebar-foreground))]" />
+          </div>
+          <div>
+            <p className="text-xs font-medium text-[hsl(var(--sidebar-foreground))]">Anna Chen</p>
+            <p className="text-[10px] text-[hsl(var(--sidebar-muted))]">Strategy Lead</p>
+          </div>
+        </div>
+      </div>
+    </aside>
+  )
+}
