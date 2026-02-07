@@ -14,7 +14,7 @@ import { useProfile } from "@/lib/profile-context"
 import { subDepartmentToLegacyDepartment } from "@/lib/profile-config"
 import { getShareHint } from "@/lib/share-data"
 import { api } from "@/lib/api"
-import { ArrowRight, Check, ChevronUp, Clock, History, Loader2, RefreshCw, Share2 } from "lucide-react"
+import { ArrowRight, Check, ChevronUp, Clock, ExternalLink, History, Loader2, MessageSquare, RefreshCw, Share2 } from "lucide-react"
 
 function formatFetchedAgo(iso: string): string {
   try {
@@ -142,8 +142,20 @@ export function UnifiedExecutiveCard({ event }: UnifiedExecutiveCardProps) {
             <ArrowRight className="h-4 w-4 shrink-0 mt-0.5" />
           )}
         </div>
-        {/* Share button */}
-        <div className="mt-3 flex justify-end">
+        {/* Open Article (left) + Share (right) - both at opposite ends */}
+        <div className="mt-3 flex justify-between items-center">
+          <div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 rounded-md border-border/80 px-4 py-2 text-xs font-medium text-card-foreground hover:bg-muted/50 hover:border-[hsl(var(--accent))]/40 disabled:opacity-60"
+              onClick={() => event.article_url && window.open(event.article_url!, "_blank", "noopener,noreferrer")}
+              disabled={!event.article_url || !event.article_url.trim()}
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              {event.article_url?.trim() ? "Open Article" : "No article link"}
+            </Button>
+          </div>
           <TooltipProvider delayDuration={300}>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -277,6 +289,73 @@ export function UnifiedExecutiveCard({ event }: UnifiedExecutiveCardProps) {
           </div>
         </div>
 
+        {/* 10b. Messaging & Marketing Brief */}
+        {(event.messaging_instructions || event.positioning_before || event.positioning_after) && (
+          <div className="mb-5">
+            <p className="text-xs font-bold uppercase tracking-wide text-blue-600 mb-2 flex items-center gap-1.5">
+              <MessageSquare className="h-3.5 w-3.5" />
+              Messaging & Marketing Brief
+            </p>
+            <div className="space-y-3 rounded-md border border-border bg-emerald-50/30 dark:bg-emerald-950/20 px-4 py-3">
+              {event.messaging_instructions && (
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                    Field-team guidance
+                  </p>
+                  <p className="text-sm leading-relaxed text-card-foreground whitespace-pre-line">
+                    {event.messaging_instructions}
+                  </p>
+                </div>
+              )}
+              {(event.positioning_before || event.positioning_after) && (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                      Before
+                    </p>
+                    <p className="text-xs leading-relaxed text-card-foreground">
+                      {event.positioning_before || "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-1">
+                      After
+                    </p>
+                    <p className="text-xs leading-relaxed text-card-foreground font-medium">
+                      {event.positioning_after || "—"}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {event.agent_action_log && event.agent_action_log !== "[]" && event.agent_action_log !== "Not enough verified data yet." && (
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                    Agent action log
+                  </p>
+                  <ul className="space-y-1">
+                    {(() => {
+                      try {
+                        const log = JSON.parse(event.agent_action_log || "[]")
+                        if (!Array.isArray(log) || log.length === 0) return null
+                        return log.map((item: { action?: string; role?: string }, i: number) => (
+                          <li key={i} className="flex items-center gap-2 text-xs text-card-foreground">
+                            <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium">
+                              {item.role || "—"}
+                            </span>
+                            <span>{item.action || ""}</span>
+                          </li>
+                        ))
+                      } catch {
+                        return null
+                      }
+                    })()}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* 11. Similar Past Events (historical precedent) */}
         <div className="mb-5">
           <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">
@@ -366,6 +445,20 @@ export function UnifiedExecutiveCard({ event }: UnifiedExecutiveCardProps) {
         cardId={`event-${event.id}`}
         title={event.title}
         signalType={isRisk ? "Risk" : "Opportunity"}
+        cardSnapshot={{
+          title: event.title,
+          summary: event.summary,
+          impact_analysis: event.impact_analysis,
+          whats_changing: event.whats_changing,
+          why_it_matters: event.why_it_matters,
+          what_to_do_now: event.what_to_do_now,
+          decision_urgency: event.decision_urgency,
+          recommended_next_step: event.recommended_next_step,
+          messaging_instructions: event.messaging_instructions,
+          positioning_before: event.positioning_before,
+          positioning_after: event.positioning_after,
+          article_url: event.article_url,
+        }}
       />
     </article>
   )

@@ -69,6 +69,11 @@ def migrate_db():
         ("confidence_level", "VARCHAR(20)"),
         ("assumptions", "TEXT"),
         ("fetched_at", "DATETIME"),
+        ("messaging_instructions", "TEXT"),
+        ("positioning_before", "TEXT"),
+        ("positioning_after", "TEXT"),
+        ("agent_action_log", "TEXT"),
+        ("article_url", "TEXT"),
     ]
     with engine.connect() as conn:
         for col_name, col_type in new_columns:

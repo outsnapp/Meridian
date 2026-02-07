@@ -21,7 +21,8 @@ EVENT_SCHEMA_FIELDS = [
     "title", "summary", "event_type", "matched_role", "impact_analysis",
     "primary_outcome", "confidence", "whats_changing", "why_it_matters",
     "what_to_do_now", "decision_urgency", "recommended_next_step",
-    "assumptions", "source"
+    "assumptions", "source",
+    "messaging_instructions", "positioning_before", "positioning_after", "agent_action_log",
 ]
 
 VALID_EVENT_TYPES = ["Operational", "Expansion", "Risk"]
@@ -85,6 +86,11 @@ def normalize_event_schema(data: Dict[str, Any]) -> Dict[str, Any]:
         result["fetched_at"] = data["fetched_at"]
     else:
         result["fetched_at"] = ""
+    # Article URL (link to scraped source)
+    if "article_url" in data and data["article_url"] and str(data["article_url"]).strip():
+        result["article_url"] = str(data["article_url"]).strip()
+    else:
+        result["article_url"] = None
 
     return result
 
@@ -123,6 +129,10 @@ def process_raw_source(raw) -> Dict:
         "recommended_next_step": "Monitor for additional information.",
         "assumptions": "Based on available public information.",
         "source": raw.source if hasattr(raw, "source") else "External",
+        "messaging_instructions": "Review internal messaging guidelines. Tailor HCP discussion points to this development.",
+        "positioning_before": PLACEHOLDER,
+        "positioning_after": PLACEHOLDER,
+        "agent_action_log": "[]",
     }
 
     if not api_key or api_key == "sk-your-key-here":
@@ -159,7 +169,11 @@ Required JSON schema (copy this structure and fill values):
   "decision_urgency": "",
   "recommended_next_step": "",
   "assumptions": "",
-  "source": ""
+  "source": "",
+  "messaging_instructions": "Bullet-point field-team guidance for doctors, sales, medical reps. What to say, what to avoid, key messages.",
+  "positioning_before": "Current/prior market positioning before this event.",
+  "positioning_after": "Recommended new positioning post-event.",
+  "agent_action_log": "JSON array of suggested actions, e.g. [{{\\"action\\": \\"Update HCP materials\\", \\"role\\": \\"Medical\\"}}]. Or empty [] if none."
 }}
 
 Rules:
@@ -186,7 +200,7 @@ Rules:
             ],
             response_format={"type": "json_object"},
             temperature=0.5,
-            max_tokens=1500,
+            max_tokens=2200,
         )
 
         content = response.choices[0].message.content.strip()

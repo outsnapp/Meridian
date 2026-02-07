@@ -16,6 +16,7 @@ export interface ApiEvent {
   impact?: string
   suggested_action?: string
   source: string
+  article_url?: string | null
   timestamp?: string | null
   updated_at?: string
   primary_outcome?: string
@@ -30,6 +31,10 @@ export interface ApiEvent {
   confidence?: string
   assumptions?: string
   fetched_at?: string
+  messaging_instructions?: string
+  positioning_before?: string
+  positioning_after?: string
+  agent_action_log?: string
 }
 
 /** Map frontend department to API role filter (4 distinct roles) */
@@ -70,8 +75,13 @@ export function apiEventToEventSchema(event: ApiEvent): EventSchema {
     recommended_next_step: orPlaceholder(event.recommended_next_step),
     assumptions: orPlaceholder(event.assumptions),
     source: orPlaceholder(event.source),
+    article_url: event.article_url && String(event.article_url).trim() ? String(event.article_url).trim() : undefined,
     updated_at: updatedAt || "—",
     fetched_at: event.fetched_at ?? undefined,
     matched_role: event.matched_role,
+    messaging_instructions: event.messaging_instructions,
+    positioning_before: event.positioning_before,
+    positioning_after: event.positioning_after,
+    agent_action_log: event.agent_action_log,
   }
 }

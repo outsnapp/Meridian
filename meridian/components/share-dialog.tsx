@@ -44,6 +44,8 @@ interface ShareDialogProps {
   cardId: string
   title: string
   signalType?: "Risk" | "Opportunity"
+  /** Full card/event data for display in chat */
+  cardSnapshot?: import("@/lib/shared-items-context").CardSnapshot
 }
 
 type Recipient =
@@ -56,6 +58,7 @@ export function ShareDialog({
   cardId,
   title,
   signalType,
+  cardSnapshot,
 }: ShareDialogProps) {
   const { department } = useDepartment()
   const { profileId } = useProfile()
@@ -123,6 +126,7 @@ export function ShareDialog({
       signalType: isRisk ? "Risk" : "Opportunity",
       message,
       recipients: recipients || "—",
+      cardSnapshot,
     })
     setSent(true)
   }

@@ -128,6 +128,7 @@ def process_data(db: Session = Depends(get_db)):
                     impact=event_data.get("impact_analysis", ""),
                     suggested_action=event_data.get("what_to_do_now", ""),
                     source=event_data.get("source", raw.source),
+                    article_url=getattr(raw, "url", None) or None,
                     fetched_at=raw.fetched_at,
                     primary_outcome=event_data.get("primary_outcome"),
                     what_is_changing=event_data.get("whats_changing", event_data.get("what_is_changing")),
@@ -138,6 +139,10 @@ def process_data(db: Session = Depends(get_db)):
                     impact_analysis=event_data.get("impact_analysis"),
                     confidence_level=event_data.get("confidence", event_data.get("confidence_level")),
                     assumptions=event_data.get("assumptions"),
+                    messaging_instructions=event_data.get("messaging_instructions"),
+                    positioning_before=event_data.get("positioning_before"),
+                    positioning_after=event_data.get("positioning_after"),
+                    agent_action_log=event_data.get("agent_action_log"),
                 )
                 db.add(event)
                 
@@ -313,9 +318,13 @@ def test_live_event():
             title = item["title"]
             content = item["content"]
             source = item.get("source", "Serper")
+            url = item.get("url") or item.get("link")
         raw = RawLike()
         event_data = process_raw_source(raw)
-        return {"status": "success", "event": normalize_event_schema(event_data)}
+        event_dict = normalize_event_schema(event_data)
+        if getattr(raw, "url", None):
+            event_dict["article_url"] = raw.url
+        return {"status": "success", "event": event_dict}
     except HTTPException:
         raise
     except Exception as e:

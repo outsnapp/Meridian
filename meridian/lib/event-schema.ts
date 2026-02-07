@@ -20,9 +20,15 @@ export interface EventSchema {
   recommended_next_step: string
   assumptions: string
   source: string
+  article_url?: string | null  // Link to scraped article
   updated_at: string
   fetched_at?: string  // When the raw news was ingested (ISO or empty)
   matched_role?: string
+  // Messaging & Marketing Brief
+  messaging_instructions?: string
+  positioning_before?: string
+  positioning_after?: string
+  agent_action_log?: string  // JSON array string
 }
 
 export const PLACEHOLDER = "Not enough verified data yet."

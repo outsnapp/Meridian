@@ -43,6 +43,7 @@ class Event(Base):
     impact = Column(Text, nullable=True)  # Legacy; prefer impact_analysis
     suggested_action = Column(Text, nullable=True)  # Legacy; prefer what_to_do_now
     source = Column(String, nullable=False)  # Origin of the data
+    article_url = Column(String, nullable=True)  # Link to scraped article (Serper/OpenFDA)
     timestamp = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
     # Extended schema fields
     primary_outcome = Column(Text, nullable=True)
@@ -55,7 +56,12 @@ class Event(Base):
     confidence_level = Column(String, nullable=True)  # "High" | "Medium" | "Low"
     assumptions = Column(Text, nullable=True)
     fetched_at = Column(DateTime, nullable=True)  # When the raw news was ingested
-    
+    # Messaging & Marketing Brief
+    messaging_instructions = Column(Text, nullable=True)  # Field-team guidance for doctors/sales/medical
+    positioning_before = Column(Text, nullable=True)  # Prior positioning
+    positioning_after = Column(Text, nullable=True)  # Recommended new positioning
+    agent_action_log = Column(Text, nullable=True)  # Optional JSON: [{action, timestamp, agent}]
+
     def __repr__(self):
         return f"<Event(id={self.id}, type={self.event_type}, role={self.matched_role})>"
     
@@ -73,6 +79,7 @@ class Event(Base):
             "impact": _str(self.impact or self.impact_analysis),
             "suggested_action": _str(self.suggested_action or self.what_to_do_now),
             "source": self.source,
+            "article_url": _str(self.article_url),
             "timestamp": self.timestamp.isoformat() if self.timestamp else None,
             "updated_at": self.timestamp.strftime("%Y-%m-%d") if self.timestamp else "",
             "primary_outcome": _str(self.primary_outcome),
@@ -87,4 +94,8 @@ class Event(Base):
             "whats_changing": _str(self.what_is_changing),
             "confidence": _str(self.confidence_level),
             "fetched_at": self.fetched_at.isoformat() if self.fetched_at else None,
+            "messaging_instructions": _str(self.messaging_instructions),
+            "positioning_before": _str(self.positioning_before),
+            "positioning_after": _str(self.positioning_after),
+            "agent_action_log": _str(self.agent_action_log),
         }

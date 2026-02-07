@@ -2,6 +2,22 @@
 
 import { createContext, useContext, useCallback, useState, useEffect, type ReactNode } from "react"
 
+/** Snapshot of intelligence card content for display in chat */
+export interface CardSnapshot {
+  title: string
+  summary: string
+  impact_analysis: string
+  whats_changing: string
+  why_it_matters: string
+  what_to_do_now: string
+  decision_urgency?: string
+  recommended_next_step?: string
+  messaging_instructions?: string
+  positioning_before?: string
+  positioning_after?: string
+  article_url?: string | null
+}
+
 export interface SharedItem {
   id: string
   cardId: string
@@ -10,6 +26,7 @@ export interface SharedItem {
   message: string
   recipients: string
   createdAt: string
+  cardSnapshot?: CardSnapshot
 }
 
 export interface ChatMessage {

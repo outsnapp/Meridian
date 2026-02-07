@@ -25,9 +25,22 @@ def inject_demo_events(db: Session) -> int:
     """
     from models import Event
     
+    # Sample article URLs for demo (simulated sources)
+    _urls = [
+        "https://www.reuters.com/business/healthcare-pharmaceuticals/ema-biosimilar-authorization",
+        "https://www.fda.gov/news-events/fda-newsroom/fda-grants-breakthrough-therapy",
+        "https://www.fda.gov/safety/medwatch-safety-alerts/cardiovascular-risk-jak-inhibitors",
+        "https://www.cms.gov/newsroom/medicare-part-b-reimbursement-2025",
+        "https://www.ema.europa.eu/en/news/pharmacovigilance-review-biologics",
+        "https://www.reuters.com/legal/patent-litigation-generic-entry",
+        "https://www.nice.org.uk/guidance/technology-appraisal-consultation",
+    ]
+
     def _demo(title, summary, event_type, matched_role, tags, impact, suggested_action,
               primary_outcome="", what_is_changing="", why_it_matters="", what_to_do_now="",
-              decision_urgency="", recommended_next_step="", assumptions="", confidence_level="Medium", **kw):
+              decision_urgency="", recommended_next_step="", assumptions="", confidence_level="Medium",
+              messaging_instructions="", positioning_before="", positioning_after="", agent_action_log="[]",
+              article_url=None, **kw):
         return {
             "title": title, "summary": summary, "event_type": event_type, "matched_role": matched_role,
             "tags": tags, "impact": impact, "suggested_action": suggested_action,
@@ -40,6 +53,11 @@ def inject_demo_events(db: Session) -> int:
             "impact_analysis": impact,
             "confidence_level": confidence_level,
             "assumptions": assumptions or "Based on EMA authorization timelines and historical reference product erosion patterns.",
+            "messaging_instructions": messaging_instructions,
+            "positioning_before": positioning_before,
+            "positioning_after": positioning_after,
+            "agent_action_log": agent_action_log,
+            "article_url": article_url,
             **kw,
         }
 
@@ -59,8 +77,13 @@ def inject_demo_events(db: Session) -> int:
             recommended_next_step="Convene a cross-functional war room within 5 business days to finalize the EU pricing corridor and competitive response playbook.",
             assumptions="Based on EMA authorization timelines, EU5 biosimilar adoption curves from 2018-2024, and historical reference product erosion patterns in oncology.",
             confidence_level="High",
+            messaging_instructions="• Lead with formulary lock-in urgency—emphasize 90-day window. • Do not promise price concessions beyond approved corridor. • Medical reps: highlight oncology portfolio differentiation; Sales: focus on Germany, France, Italy account plans. • Avoid discussing competitor by name in HCP materials.",
+            positioning_before="Reference product pricing; standard oncology portfolio messaging.",
+            positioning_after="Defensive value positioning; formulary commitment and volume guarantees.",
+            agent_action_log='[{"action":"Update EU account playbooks","role":"Commercial","timestamp":"—"},{"action":"Revise HCP objection handlers","role":"Medical","timestamp":"—"}]',
             timestamp=datetime.utcnow() - timedelta(hours=2),
             source="Simulation",
+            article_url=_urls[0],
         ),
         _demo(
             "FDA Grants Breakthrough Therapy Designation",
@@ -69,8 +92,13 @@ def inject_demo_events(db: Session) -> int:
             "Potential 18-24 month acceleration in U.S. market entry, addressing $4.2B dermatology market opportunity.",
             "Fast-track Phase 3 completion and prepare pre-launch commercial infrastructure for Q2 2025 target.",
             decision_urgency="Medium", confidence_level="High",
+            messaging_instructions="• Emphasize Breakthrough designation and accelerated pathway. • Lead with differentiation in atopic dermatitis; do not overstate timelines. • Medical: prepare efficacy/safety summary for advisory boards. • Sales: coordinate with market access on launch sequencing.",
+            positioning_before="Pipeline candidate; standard dermatology development messaging.",
+            positioning_after="Breakthrough-designated asset; accelerated U.S. entry narrative.",
+            agent_action_log='[{"action":"Draft launch readiness checklist","role":"Commercial","timestamp":"—"}]',
             timestamp=datetime.utcnow() - timedelta(hours=4),
             source="Simulation",
+            article_url=_urls[1],
         ),
         _demo(
             "FDA Safety Alert: Cardiovascular Risk Signal",
@@ -79,8 +107,13 @@ def inject_demo_events(db: Session) -> int:
             "Mandatory label revision and Risk Evaluation and Mitigation Strategy (REMS) implementation required within 90 days.",
             "Convene Medical Affairs team to develop prescriber education program and update clinical guidelines.",
             decision_urgency="High", confidence_level="High",
+            messaging_instructions="• Do not downplay cardiovascular risk; lead with transparency. • Medical reps: distribute prescriber education; ensure REMS compliance. • Pause promotional claims until label updated. • HCP materials: use FDA-approved safety language only.",
+            positioning_before="Standard JAK inhibitor safety profile; cardiovascular monitoring as per label.",
+            positioning_after="Enhanced monitoring messaging; REMS-compliant safety narrative.",
+            agent_action_log='[{"action":"Develop prescriber education program","role":"Medical","timestamp":"—"},{"action":"Update promotional materials for label","role":"Compliance","timestamp":"—"}]',
             timestamp=datetime.utcnow() - timedelta(hours=6),
             source="Simulation",
+            article_url=_urls[2],
         ),
         _demo(
             "Medicare Part B Reimbursement Enhancement",
@@ -89,8 +122,13 @@ def inject_demo_events(db: Session) -> int:
             "Estimated $48-84M incremental margin opportunity across immunology portfolio with improved payer access.",
             "Align portfolio positioning and market access strategy to capitalize on reimbursement advantage.",
             decision_urgency="Medium", confidence_level="Medium",
+            messaging_instructions="• Lead with reimbursement advantage for high-efficacy biologics. • Field teams: use CMS final rule in formulary discussions. • Finance/Market Access: align on pricing corridor. • Do not overstate margin uplift; use conservative estimates.",
+            positioning_before="Standard immunology reimbursement narrative.",
+            positioning_after="CMS-recognized efficacy premium; improved payer access.",
+            agent_action_log='[{"action":"Update reimbursement calculators","role":"Market Access","timestamp":"—"}]',
             timestamp=datetime.utcnow() - timedelta(hours=8),
             source="Simulation",
+            article_url=_urls[3],
         ),
         _demo(
             "EMA Initiates Post-Market Safety Review",
@@ -99,8 +137,13 @@ def inject_demo_events(db: Session) -> int:
             "Standard 6-month review process requiring submission of cumulative safety data and post-market surveillance reports.",
             "Prepare comprehensive safety dossier and coordinate with EU regulatory affairs for timely submission.",
             decision_urgency="Medium", confidence_level="Medium",
+            messaging_instructions="• Prepare cumulative safety dossier; coordinate with EU regulatory. • Medical: ensure pharmacovigilance data is current. • Do not speculate on review outcome. • Use standard compliance language in all communications.",
+            positioning_before="Routine pharmacovigilance; established safety profile.",
+            positioning_after="Active safety review; data-driven compliance narrative.",
+            agent_action_log='[{"action":"Submit safety dossier to EMA","role":"Regulatory","timestamp":"—"}]',
             timestamp=datetime.utcnow() - timedelta(hours=12),
             source="Simulation",
+            article_url=_urls[4],
         ),
         _demo(
             "Generic Entry Accelerated via Patent Challenge",
@@ -109,8 +152,13 @@ def inject_demo_events(db: Session) -> int:
             "Accelerated generic competition threatens $620M annual U.S. revenue base with 70-80% erosion upon entry.",
             "Evaluate authorized generic strategy and explore life-cycle management options including new formulations.",
             decision_urgency="High", confidence_level="High",
+            messaging_instructions="• Prepare for accelerated generic erosion; update account plans. • Do not discuss litigation; focus on value and lifecycle strategy. • Sales: prioritize high-value accounts; Medical: support authorized generic discussions if applicable.",
+            positioning_before="Patent-protected; exclusivity narrative.",
+            positioning_after="Lifecycle management; value retention and authorized generic options.",
+            agent_action_log='[{"action":"Evaluate authorized generic strategy","role":"Strategy","timestamp":"—"},{"action":"Revise revenue forecasts","role":"Finance","timestamp":"—"}]',
             timestamp=datetime.utcnow() - timedelta(hours=16),
             source="Simulation",
+            article_url=_urls[5],
         ),
         _demo(
             "NICE Technology Appraisal Consultation Opens",
@@ -119,8 +167,13 @@ def inject_demo_events(db: Session) -> int:
             "Draft guidance recommends restricted use pending additional cost-effectiveness data, impacting UK formulary positioning.",
             "Submit stakeholder response with updated health economic model and real-world evidence by consultation deadline.",
             decision_urgency="Medium", confidence_level="Medium",
+            messaging_instructions="• Submit stakeholder response with updated health economic model. • Lead with real-world evidence; address cost-effectiveness concerns. • Do not criticize NICE process. • Market Access: coordinate with UK team on submission timeline.",
+            positioning_before="Standard UK formulary positioning.",
+            positioning_after="Evidence-enhanced value narrative; NICE consultation response.",
+            agent_action_log='[{"action":"Submit NICE stakeholder response","role":"Market Access","timestamp":"—"}]',
             timestamp=datetime.utcnow() - timedelta(hours=20),
             source="Simulation",
+            article_url=_urls[6],
         ),
     ]
     
