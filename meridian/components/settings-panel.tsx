@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Moon, Sun, Bell, User, Building2, MapPin } from "lucide-react"
 import { useTheme } from "next-themes"
 import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import {
   Select,
   SelectContent,
@@ -11,21 +12,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
 import { useProfile } from "@/lib/profile-context"
 import { useDepartment } from "@/lib/department-context"
 import { useSettings } from "@/lib/settings-context"
-import { getProfile, PROFILES, type ProfileId } from "@/lib/profile-config"
+import { getProfile } from "@/lib/profile-config"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 
+const readOnlyInputClass =
+  "flex h-10 w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm text-foreground cursor-default"
+
 export function SettingsPanel() {
   const { theme, setTheme } = useTheme()
-  const { profileId, setProfileId } = useProfile()
-  const { department, setDepartment } = useDepartment()
+  const { profileId } = useProfile()
+  const { department } = useDepartment()
   const { getRegion, setRegion, notificationsEnabled, setNotificationsEnabled, REGIONS } = useSettings()
   const profile = getProfile(profileId)
   const currentRegion = getRegion(profileId)
+  const departmentLabel = profile.subDepartments.find((s) => s.id === department)?.label ?? department
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
 
@@ -47,21 +51,12 @@ export function SettingsPanel() {
             <User className="h-4 w-4" />
             Profile
           </CardTitle>
-          <CardDescription>Select your user profile for the dashboard</CardDescription>
+          <CardDescription>Your user profile for the dashboard</CardDescription>
         </CardHeader>
         <CardContent>
-          <Select value={profileId} onValueChange={(v) => setProfileId(v as ProfileId)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {PROFILES.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.name} — {p.role}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className={readOnlyInputClass} aria-readonly>
+            {profile.name} — {profile.role}
+          </div>
         </CardContent>
       </Card>
 
@@ -76,18 +71,9 @@ export function SettingsPanel() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Select value={department} onValueChange={setDepartment}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select department" />
-            </SelectTrigger>
-            <SelectContent>
-              {profile.subDepartments.map((s) => (
-                <SelectItem key={s.id} value={s.id}>
-                  {s.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className={readOnlyInputClass} aria-readonly>
+            {departmentLabel}
+          </div>
         </CardContent>
       </Card>
 

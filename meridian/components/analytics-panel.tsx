@@ -66,7 +66,7 @@ export function AnalyticsPanel() {
             Waiting for verified intelligence sources.
           </p>
           <p className="mt-2 text-xs text-muted-foreground">
-            Use Load Intelligence in the sidebar to fetch from OpenFDA, Serper, or CDSCO.
+            Use Fetch Live Data in the sidebar to fetch from OpenFDA, Serper, or CDSCO.
           </p>
         </div>
       </div>

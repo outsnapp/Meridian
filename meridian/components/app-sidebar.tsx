@@ -45,7 +45,7 @@ export function AppSidebar() {
   async function handleLoadIntelligence() {
     if (isLoading) return
     setIsLoading(true)
-    toast.info("Loading intelligence pipeline...")
+    toast.info("Fetching live data...")
     try {
       // 1. Fetch live data
       const ingestRes = await fetch(api.ingestLive(), { method: "POST" })
@@ -102,7 +102,7 @@ export function AppSidebar() {
           })}
         </nav>
 
-        {/* Load Intelligence - single consolidated action */}
+        {/* Fetch Live Data - single consolidated action */}
         <div className="mt-6 px-3">
           <Button
             variant="default"
@@ -112,7 +112,7 @@ export function AppSidebar() {
             className="w-full gap-2.5 h-11 rounded-lg font-medium shadow-sm bg-[hsl(var(--sidebar-primary))] hover:bg-[hsl(var(--sidebar-primary))]/90 text-[hsl(var(--sidebar-primary-foreground))]"
           >
             <Zap className={cn("h-4 w-4 shrink-0", isLoading && "animate-pulse")} />
-            {isLoading ? "Loading..." : "Load Intelligence"}
+            {isLoading ? "Fetching..." : "Fetch Live Data"}
           </Button>
           <p className="mt-2 text-[10px] text-[hsl(var(--sidebar-muted))] text-center leading-tight">
             Fetches live data and processes with AI

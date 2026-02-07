@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { jsPDF } from "jspdf"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -19,12 +20,8 @@ import {
   Sparkles,
   FileText,
   Download,
-  UserPlus,
-  ExternalLink,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-
-const TAB_OPTIONS = ["AI Summary", "Open Questions", "Pending Actions"] as const
 
 export function ChatPanel() {
   const { sharedItemsForPosition, getMessages, addMessage, markThreadRead, getUnreadCount } = useSharedItems()
@@ -33,9 +30,9 @@ export function ChatPanel() {
   const sharedItems = sharedItemsForPosition(profileId)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [input, setInput] = useState("")
-  const [activeTab, setActiveTab] = useState<(typeof TAB_OPTIONS)[number]>("AI Summary")
   const [generatedBriefByThread, setGeneratedBriefByThread] = useState<Record<string, string>>({})
   const [briefLoadingThreadId, setBriefLoadingThreadId] = useState<string | null>(null)
+  const [isExportingPdf, setIsExportingPdf] = useState(false)
 
   useEffect(() => {
     if (sharedItems.length > 0 && !selectedId) {
@@ -73,12 +70,99 @@ export function ChatPanel() {
       const data = await res.json()
       if (res.ok && data.summary != null) {
         setGeneratedBriefByThread((prev) => ({ ...prev, [selectedId]: data.summary }))
-        setActiveTab("AI Summary")
       }
     } catch {
       setGeneratedBriefByThread((prev) => ({ ...prev, [selectedId]: "Could not generate brief. Check backend." }))
     } finally {
       setBriefLoadingThreadId(null)
+    }
+  }
+
+  function handleExportPdf() {
+    if (!selected) return
+    setIsExportingPdf(true)
+    try {
+      const messages = getMessages(selected.id)
+      const brief = generatedBriefByThread[selected.id]
+      const doc = new jsPDF({ format: "a4", unit: "mm" })
+      const margin = 20
+      const pageW = doc.internal.pageSize.getWidth()
+      const pageH = doc.internal.pageSize.getHeight()
+      const maxW = pageW - margin * 2
+      let y = margin
+      const lineHeight = 5
+      const sectionGap = 8
+
+      function checkPage() {
+        if (y > pageH - margin - 20) {
+          doc.addPage()
+          y = margin
+        }
+      }
+
+      doc.setFontSize(16)
+      doc.setFont("helvetica", "bold")
+      const titleLines = doc.splitTextToSize(selected.title, maxW)
+      titleLines.forEach((line: string) => {
+        checkPage()
+        doc.text(line, margin, y)
+        y += lineHeight
+      })
+      y += sectionGap
+
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(10)
+      doc.setTextColor(100, 100, 100)
+      doc.text(`${selected.signalType} · ${formatDate(selected.createdAt)}`, margin, y)
+      y += lineHeight + sectionGap
+
+      if (brief) {
+        checkPage()
+        doc.setFontSize(11)
+        doc.setFont("helvetica", "bold")
+        doc.setTextColor(0, 0, 0)
+        doc.text("Discussion brief — important points from this chat", margin, y)
+        y += lineHeight + 2
+        doc.setFont("helvetica", "normal")
+        doc.setFontSize(10)
+        const briefLines = doc.splitTextToSize(brief, maxW)
+        briefLines.forEach((line: string) => {
+          checkPage()
+          doc.text(line, margin, y)
+          y += lineHeight
+        })
+        y += sectionGap * 2
+      }
+
+      doc.setFontSize(11)
+      doc.setFont("helvetica", "bold")
+      doc.text("Conversation", margin, y)
+      y += lineHeight + sectionGap
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(10)
+
+      for (const msg of messages) {
+        checkPage()
+        const typeLabel = msg.type && msg.type !== "user" ? `[${msg.type.replace("_", " ")}] ` : ""
+        const header = `${typeLabel}${msg.author}${msg.role ? ` · ${msg.role}` : ""} · ${formatTime(msg.createdAt)}`
+        doc.setTextColor(80, 80, 80)
+        doc.text(header, margin, y)
+        y += lineHeight
+        doc.setTextColor(0, 0, 0)
+        const textLines = doc.splitTextToSize(msg.text, maxW)
+        textLines.forEach((line: string) => {
+          checkPage()
+          doc.text(line, margin, y)
+          y += lineHeight
+        })
+        y += sectionGap
+      }
+
+      const slug = selected.title.replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 50)
+      const dateStr = new Date().toISOString().slice(0, 10)
+      doc.save(`chat-${slug || selected.id}-${dateStr}.pdf`)
+    } finally {
+      setIsExportingPdf(false)
     }
   }
 
@@ -124,26 +208,7 @@ export function ChatPanel() {
       <section className="flex-1 flex flex-col min-w-0 bg-[hsl(var(--background))]">
         {selected ? (
           <>
-            {/* Top bar: AI Summary | Open Questions | Pending Actions */}
-            <div className="shrink-0 flex gap-1 p-3 border-b border-border bg-card/30">
-              {TAB_OPTIONS.map((tab) => (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => setActiveTab(tab)}
-                  className={cn(
-                    "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-                    activeTab === tab
-                      ? "bg-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))] shadow-sm"
-                      : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-                  )}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
-
-            {/* Conversation: always show messages; AI Summary tab shows brief above when available */}
+            {/* Conversation: brief (when available) + messages */}
             <ScrollArea className="flex-1 p-6">
               <div className="max-w-2xl mx-auto space-y-6">
                 {/* Who can see this chat */}
@@ -152,28 +217,24 @@ export function ChatPanel() {
                     Only you and: {selected.sharedWithPositionIds.map((id) => PROFILES.find((p) => p.id === id)?.role ?? id).join(", ")} can see this chat.
                   </p>
                 )}
-                {/* AI Summary tab: show generated brief above the conversation */}
-                {activeTab === "AI Summary" && (
-                  <>
-                    {briefLoadingThreadId === selected.id ? (
-                      <div className="rounded-xl border border-border bg-card p-5">
-                        <p className="text-sm text-muted-foreground">Generating brief…</p>
-                      </div>
-                    ) : generatedBriefByThread[selected.id] ? (
-                      <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">Discussion brief — important points from this chat</p>
-                        <div className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
-                          {generatedBriefByThread[selected.id]}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="rounded-xl border border-dashed border-border bg-muted/30 p-4">
-                        <p className="text-sm text-muted-foreground">
-                          Click &quot;Generate Brief&quot; in the Signal Context panel to create a summary of the most important points discussed in this chat.
-                        </p>
-                      </div>
-                    )}
-                  </>
+                {/* Generated brief above the conversation */}
+                {briefLoadingThreadId === selected.id ? (
+                  <div className="rounded-xl border border-border bg-card p-5">
+                    <p className="text-sm text-muted-foreground">Generating brief…</p>
+                  </div>
+                ) : generatedBriefByThread[selected.id] ? (
+                  <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">Discussion brief — important points from this chat</p>
+                    <div className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+                      {generatedBriefByThread[selected.id]}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-border bg-muted/30 p-4">
+                    <p className="text-sm text-muted-foreground">
+                      Click &quot;Generate Brief&quot; in the Signal Context panel to create a summary of the most important points discussed in this chat.
+                    </p>
+                  </div>
                 )}
                 {/* Messages: always visible so both people see the conversation */}
                 <div>
@@ -248,6 +309,8 @@ export function ChatPanel() {
                 snapshot={selected.cardSnapshot}
                 onGenerateBrief={handleGenerateBrief}
                 isGenerating={briefLoadingThreadId === selected.id}
+                onExportPdf={handleExportPdf}
+                isExportingPdf={isExportingPdf}
               />
             </ScrollArea>
           </>
@@ -405,11 +468,15 @@ function SignalContextCard({
   snapshot,
   onGenerateBrief,
   isGenerating,
+  onExportPdf,
+  isExportingPdf,
 }: {
   item: SharedItem
   snapshot?: CardSnapshot
   onGenerateBrief?: () => void
   isGenerating?: boolean
+  onExportPdf?: () => void
+  isExportingPdf?: boolean
 }) {
   const sn = snapshot ?? {}
   const tags = (sn.tags ?? "").split(",").filter(Boolean)
@@ -467,13 +534,16 @@ function SignalContextCard({
             <FileText className="h-3.5 w-3.5" />
             {isGenerating ? "Generating…" : "Generate Brief"}
           </Button>
-          <Button variant="outline" size="sm" className="w-full justify-start gap-2 rounded-lg" type="button">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-start gap-2 rounded-lg"
+            type="button"
+            onClick={onExportPdf}
+            disabled={isExportingPdf}
+          >
             <Download className="h-3.5 w-3.5" />
-            Export PDF
-          </Button>
-          <Button variant="outline" size="sm" className="w-full justify-start gap-2 rounded-lg" type="button">
-            <UserPlus className="h-3.5 w-3.5" />
-            Assign Owner
+            {isExportingPdf ? "Exporting…" : "Export PDF"}
           </Button>
         </div>
       </div>
