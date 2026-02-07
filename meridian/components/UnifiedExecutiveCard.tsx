@@ -14,7 +14,7 @@ import { useProfile } from "@/lib/profile-context"
 import { subDepartmentToLegacyDepartment } from "@/lib/profile-config"
 import { getShareHint } from "@/lib/share-data"
 import { api } from "@/lib/api"
-import { ArrowRight, Check, ChevronUp, Clock, ExternalLink, History, Loader2, MessageSquare, RefreshCw, Share2 } from "lucide-react"
+import { ArrowRight, Check, ChevronUp, Clock, History, Loader2, MessageSquare, RefreshCw, Share2 } from "lucide-react"
 
 function formatFetchedAgo(iso: string): string {
   try {
@@ -95,23 +95,8 @@ export function UnifiedExecutiveCard({ event }: UnifiedExecutiveCardProps) {
 
   return (
     <article className="rounded-xl border border-border bg-white p-6 shadow-sm dark:bg-card">
-      {/* 1. Header: Badges + Title + Summary */}
-      <div className="flex items-center justify-between">
-        <Badge
-          className={
-            isRisk
-              ? "rounded bg-destructive px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-destructive-foreground border-0"
-              : "rounded bg-emerald-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#fff] border-0"
-          }
-        >
-          {isRisk ? "Critical Risk" : "Opportunity"}
-        </Badge>
-        <Badge className="rounded bg-blue-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white border-0">
-          Signal
-        </Badge>
-      </div>
-
-      <h2 className="mt-4 text-xl font-bold text-card-foreground leading-tight text-balance">
+      {/* 1. Header: Title + Summary */}
+      <h2 className="text-xl font-bold text-card-foreground leading-tight text-balance">
         {event.title}
       </h2>
       <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
@@ -142,20 +127,8 @@ export function UnifiedExecutiveCard({ event }: UnifiedExecutiveCardProps) {
             <ArrowRight className="h-4 w-4 shrink-0 mt-0.5" />
           )}
         </div>
-        {/* Open Article (left) + Share (right) - both at opposite ends */}
-        <div className="mt-3 flex justify-between items-center">
-          <div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2 rounded-md border-border/80 px-4 py-2 text-xs font-medium text-card-foreground hover:bg-muted/50 hover:border-[hsl(var(--accent))]/40 disabled:opacity-60"
-              onClick={() => event.article_url && window.open(event.article_url!, "_blank", "noopener,noreferrer")}
-              disabled={!event.article_url || !event.article_url.trim()}
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-              {event.article_url?.trim() ? "Open Article" : "No article link"}
-            </Button>
-          </div>
+        {/* Share */}
+        <div className="mt-3 flex justify-end items-center">
           <TooltipProvider delayDuration={300}>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -468,6 +441,9 @@ export function UnifiedExecutiveCard({ event }: UnifiedExecutiveCardProps) {
           positioning_before: event.positioning_before,
           positioning_after: event.positioning_after,
           article_url: event.article_url,
+          tags: event.tags,
+          source: event.source,
+          updated_at: event.updated_at,
         }}
       />
     </article>

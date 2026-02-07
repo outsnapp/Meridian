@@ -97,6 +97,7 @@ export function apiEventToEventSchema(event: ApiEvent): EventSchema {
     source: orEmpty(event.source),
     article_url: event.article_url && String(event.article_url).trim() ? String(event.article_url).trim() : undefined,
     updated_at: updatedAt || "—",
+    tags: event.tags,
     fetched_at: event.fetched_at ?? undefined,
     matched_role: event.matched_role,
     messaging_instructions: event.messaging_instructions,

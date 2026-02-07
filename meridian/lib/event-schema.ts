@@ -22,6 +22,7 @@ export interface EventSchema {
   source: string
   article_url?: string | null  // Link to scraped article
   updated_at: string
+  tags?: string  // CSV e.g. Geography, Therapy, Product
   fetched_at?: string  // When the raw news was ingested (ISO or empty)
   matched_role?: string
   // Messaging & Marketing Brief

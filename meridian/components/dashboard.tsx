@@ -203,13 +203,13 @@ function DashboardContent({
       <div className="flex h-screen overflow-hidden">
         <AppSidebar />
         <main className="flex-1 flex flex-col overflow-hidden">
-          <header className="shrink-0 flex items-center gap-4 border-b border-border bg-card px-8 py-5">
-            <h1 className="text-lg font-bold text-foreground">Chat</h1>
+          <header className="shrink-0 flex items-center gap-4 border-b border-border bg-card px-8 py-5 shadow-sm">
+            <h1 className="text-lg font-bold text-foreground">Executive Intelligence Workspace</h1>
             <p className="text-xs text-muted-foreground">
-              View shared intelligence and discuss with colleagues
+              Discuss strategic response and decisions linked to intelligence signals
             </p>
           </header>
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 overflow-hidden min-h-0">
             <ChatPanel />
           </div>
         </main>

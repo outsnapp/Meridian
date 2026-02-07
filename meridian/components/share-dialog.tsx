@@ -24,7 +24,7 @@ import {
 } from "lucide-react"
 import { useDepartment } from "@/lib/department-context"
 import { useProfile } from "@/lib/profile-context"
-import { subDepartmentToLegacyDepartment } from "@/lib/profile-config"
+import { subDepartmentToLegacyDepartment, PROFILES, type ProfileId } from "@/lib/profile-config"
 import {
   colleagues,
   teams,
@@ -67,6 +67,7 @@ export function ShareDialog({
   const cardContext = getCardContext(cardId as "biosimilar-entry" | "medicare-reimbursement")
 
   const [selectedRecipients, setSelectedRecipients] = useState<Recipient[]>([])
+  const [selectedPositionIds, setSelectedPositionIds] = useState<ProfileId[]>([])
   const [message, setMessage] = useState("")
   const [scope, setScope] = useState<ContentScope>("impact")
   const [sent, setSent] = useState(false)
@@ -75,6 +76,7 @@ export function ShareDialog({
   useEffect(() => {
     if (open) {
       setSelectedRecipients([])
+      setSelectedPositionIds([])
       setScope("impact")
       setSent(false)
       const defaultMsg = getSmartDefaultMessage(cardId, legacyDept)
@@ -116,17 +118,31 @@ export function ShareDialog({
 
   const isRisk = signalType === "Risk" || cardContext?.signalType === "Risk"
 
+  function togglePosition(profileId: ProfileId) {
+    setSelectedPositionIds((prev) =>
+      prev.includes(profileId) ? prev.filter((id) => id !== profileId) : [...prev, profileId]
+    )
+  }
+
   function handleSend() {
     const recipients = selectedRecipients
       .map((r) => (r.type === "team" ? r.data.name : r.data.name))
       .join(", ")
+    const positionLabels =
+      selectedPositionIds.length > 0
+        ? selectedPositionIds
+            .map((id) => PROFILES.find((p) => p.id === id)?.role ?? id)
+            .join(", ")
+        : "—"
     addSharedItem({
       cardId,
       title,
       signalType: isRisk ? "Risk" : "Opportunity",
       message,
-      recipients: recipients || "—",
+      recipients: recipients || positionLabels,
       cardSnapshot,
+      sharedWithPositionIds: selectedPositionIds.length > 0 ? selectedPositionIds : undefined,
+      sharedByProfileId: profileId as ProfileId,
     })
     setSent(true)
   }
@@ -145,7 +161,7 @@ export function ShareDialog({
                 Shared successfully
               </h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                {selectedRecipients.length} recipient{selectedRecipients.length !== 1 && "s"} will receive this intelligence update.
+                Only {selectedPositionIds.map((id) => PROFILES.find((p) => p.id === id)?.role ?? id).join(", ")} will see this thread.
               </p>
             </div>
 
@@ -214,7 +230,39 @@ export function ShareDialog({
           </span>
         </div>
 
-        {/* Recipients */}
+        {/* Share with position(s) - only these positions will see the thread */}
+        <div>
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+            Share with position(s)
+          </p>
+          <p className="mb-2 text-[11px] text-muted-foreground">
+            Only selected positions will see this thread. Select at least one.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {PROFILES.map((p) => (
+              <label
+                key={p.id}
+                className={cn(
+                  "flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-xs transition-colors",
+                  selectedPositionIds.includes(p.id as ProfileId)
+                    ? "border-[hsl(var(--accent))] bg-[hsl(var(--accent))]/10 text-foreground"
+                    : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <Checkbox
+                  checked={selectedPositionIds.includes(p.id as ProfileId)}
+                  onCheckedChange={() => togglePosition(p.id as ProfileId)}
+                  className="h-3.5 w-3.5"
+                />
+                <span className="font-medium">{p.role}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <Separator className="opacity-50" />
+
+        {/* Recipients (optional display) */}
         <div>
           <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
             Recipients
@@ -331,13 +379,13 @@ export function ShareDialog({
         {/* Footer */}
         <div className="flex items-center justify-between pt-1">
           <span className="text-[11px] text-muted-foreground">
-            {selectedRecipients.length === 0
-              ? "Select at least one recipient"
-              : `${selectedRecipients.length} recipient${selectedRecipients.length !== 1 ? "s" : ""} selected`}
+            {selectedPositionIds.length === 0
+              ? "Select at least one position to share with"
+              : `Visible only to: ${selectedPositionIds.map((id) => PROFILES.find((p) => p.id === id)?.role ?? id).join(", ")}`}
           </span>
           <Button
             size="sm"
-            disabled={selectedRecipients.length === 0}
+            disabled={selectedPositionIds.length === 0}
             onClick={handleSend}
             className="gap-1.5 bg-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))] hover:bg-[hsl(var(--accent))]/90 disabled:opacity-40"
           >
