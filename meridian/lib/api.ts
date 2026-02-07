@@ -21,4 +21,7 @@ export const api = {
   analyticsSummary: () => `${API_BASE_URL}/analytics/summary`,
   debugEventSchema: () => `${API_BASE_URL}/debug/event-schema`,
   cleanupDuplicates: () => `${API_BASE_URL}/debug/cleanup-duplicates`,
+  signalAnalysis: (id: number) => `${API_BASE_URL}/signals/${id}/analysis`,
+  signalExplanation: (id: number) => `${API_BASE_URL}/signals/${id}/explanation`,
+  riskEngineRecalculate: () => `${API_BASE_URL}/risk-engine/recalculate`,
 };

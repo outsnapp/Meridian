@@ -31,8 +31,26 @@ function formatFetchedAgo(iso: string): string {
     return iso.slice(0, 16)
   }
 }
-import { useRef, useState } from "react"
+import { useRef, useState, useEffect } from "react"
 import type { EventSchema } from "@/lib/event-schema"
+
+interface RiskAnalysis {
+  status: string
+  probability?: number
+  loss_min?: number
+  loss_max?: number
+  expected_days_min?: number
+  expected_days_max?: number
+  confidence_score?: number
+  confidence_band?: string
+  methodology?: {
+    financial_basis: string
+    risk_basis: string
+    timeline_basis: string
+    confidence_basis: string
+  }
+  message?: string
+}
 
 interface UnifiedExecutiveCardProps {
   event: EventSchema
@@ -45,10 +63,29 @@ export function UnifiedExecutiveCard({ event }: UnifiedExecutiveCardProps) {
   const [precedentsLoading, setPrecedentsLoading] = useState(false)
   const [precedentsFetched, setPrecedentsFetched] = useState(false)
   const [precedentsMessage, setPrecedentsMessage] = useState<string | null>(null)
+  const [riskAnalysis, setRiskAnalysis] = useState<RiskAnalysis | null>(null)
+  const [riskAnalysisLoading, setRiskAnalysisLoading] = useState(false)
+  const [methodologyExpanded, setMethodologyExpanded] = useState(false)
   const analysisRef = useRef<HTMLDivElement>(null)
   const { department } = useDepartment()
   const { profileId } = useProfile()
   const legacyDept = subDepartmentToLegacyDepartment(profileId, department)
+
+  useEffect(() => {
+    async function fetchRiskAnalysis() {
+      setRiskAnalysisLoading(true)
+      try {
+        const res = await fetch(api.signalAnalysis(parseInt(event.id, 10)))
+        const data = await res.json()
+        setRiskAnalysis(data)
+      } catch {
+        setRiskAnalysis({ status: "error", message: "Failed to load risk analysis" })
+      } finally {
+        setRiskAnalysisLoading(false)
+      }
+    }
+    fetchRiskAnalysis()
+  }, [event.id])
 
   async function fetchPrecedents() {
     if (precedentsFetched || precedentsLoading) return
@@ -114,6 +151,109 @@ export function UnifiedExecutiveCard({ event }: UnifiedExecutiveCardProps) {
           </p>
         </div>
       </div>
+
+      {/* Risk Engine Analysis */}
+      {riskAnalysisLoading ? (
+        <div className="mt-5 rounded-lg border border-border bg-muted/20 p-4">
+          <p className="text-sm text-muted-foreground">Loading risk analysis...</p>
+        </div>
+      ) : riskAnalysis?.status === "insufficient_data" ? (
+        <div className="mt-5 rounded-lg border border-dashed border-border bg-muted/20 p-4">
+          <p className="text-sm text-muted-foreground">
+            {riskAnalysis.message || "More historical data required for impact and risk estimates"}
+          </p>
+        </div>
+      ) : riskAnalysis?.status === "ok" ? (
+        <div className="mt-5 space-y-4">
+          {/* Impact Estimation */}
+          {riskAnalysis.loss_min != null && riskAnalysis.loss_max != null && (
+            <div className="rounded-lg border border-border bg-card p-4">
+              <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">
+                📊 Financial Impact Estimation
+              </p>
+              <p className="text-lg font-semibold text-card-foreground">
+                ${riskAnalysis.loss_min.toLocaleString()} – ${riskAnalysis.loss_max.toLocaleString()}
+              </p>
+              {riskAnalysis.confidence_band && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Confidence: {riskAnalysis.confidence_band}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Risk Probability */}
+          {riskAnalysis.probability != null && (
+            <div className="rounded-lg border border-border bg-card p-4">
+              <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">
+                ⚠️ Regulatory Action Probability
+              </p>
+              <p className="text-lg font-semibold text-card-foreground">
+                {riskAnalysis.probability.toFixed(1)}%
+              </p>
+            </div>
+          )}
+
+          {/* Expected Timeline */}
+          {riskAnalysis.expected_days_min != null && riskAnalysis.expected_days_max != null && (
+            <div className="rounded-lg border border-border bg-card p-4">
+              <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">
+                ⏱ Expected Timeline
+              </p>
+              <p className="text-lg font-semibold text-card-foreground">
+                {riskAnalysis.expected_days_min}–{riskAnalysis.expected_days_max} days
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Expected time to regulatory action
+              </p>
+            </div>
+          )}
+
+          {/* Methodology (expandable) */}
+          {riskAnalysis.methodology && (
+            <div className="rounded-lg border border-border bg-muted/10 p-4">
+              <button
+                type="button"
+                onClick={() => setMethodologyExpanded(!methodologyExpanded)}
+                className="w-full flex items-center justify-between text-left"
+              >
+                <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                  📖 How This Was Calculated
+                </p>
+                <ChevronUp className={`h-4 w-4 transition-transform ${methodologyExpanded ? "" : "rotate-180"}`} />
+              </button>
+              {methodologyExpanded && (
+                <div className="mt-3 space-y-3 text-sm text-card-foreground leading-relaxed">
+                  <div>
+                    <p className="font-semibold text-xs uppercase tracking-wider text-muted-foreground mb-1">
+                      Financial Basis
+                    </p>
+                    <p>{riskAnalysis.methodology.financial_basis}</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-xs uppercase tracking-wider text-muted-foreground mb-1">
+                      Risk Basis
+                    </p>
+                    <p>{riskAnalysis.methodology.risk_basis}</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-xs uppercase tracking-wider text-muted-foreground mb-1">
+                      Timeline Basis
+                    </p>
+                    <p>{riskAnalysis.methodology.timeline_basis}</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-xs uppercase tracking-wider text-muted-foreground mb-1">
+                      Confidence Basis
+                    </p>
+                    <p>{riskAnalysis.methodology.confidence_basis}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      ) : null}
 
       {/* Recommended Action - full-width box (full text visible) */}
       <div className="mt-5">

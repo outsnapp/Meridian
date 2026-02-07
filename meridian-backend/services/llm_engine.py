@@ -93,11 +93,70 @@ def normalize_event_schema(data: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
+def extract_company_drug(raw) -> tuple[str, str]:
+    """
+    Extract company name and drug/product name from raw source using OpenAI.
+    Returns (company_name, drug_name). Either can be empty string if not found.
+    This is used by the risk engine to link signals to financial data.
+    """
+    api_key = os.getenv("OPENAI_API_KEY")
+    
+    if not api_key or api_key == "sk-your-key-here":
+        return ("", "")
+    
+    try:
+        client = OpenAI(api_key=api_key)
+        input_text = f"{raw.title}\n\n{raw.content}"
+        if len(input_text) > 1000:
+            input_text = input_text[:1000] + "..."
+        
+        prompt = f"""Extract the pharmaceutical company name and drug/product name from this text.
+
+Input:
+{input_text}
+
+Output ONLY a JSON object with exactly these fields:
+{{
+  "company": "company name or empty string if not found",
+  "drug_name": "drug/product name or empty string if not found"
+}}
+
+Rules:
+- company: the pharmaceutical/biotech company (e.g. "Lupin", "Pfizer", "AstraZeneca")
+- drug_name: specific drug or product mentioned (e.g. "Remicade", "Humira", "Aspirin")
+- Use empty string "" if not clearly stated in the text
+- Output ONLY the JSON, no explanations"""
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "Extract structured data as JSON only."},
+                {"role": "user", "content": prompt}
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.3,
+            max_tokens=150
+        )
+        
+        content = response.choices[0].message.content.strip()
+        result = json.loads(content)
+        company = (result.get("company") or "").strip()
+        drug_name = (result.get("drug_name") or "").strip()
+        
+        logger.info(f"[EXTRACT] Company: {company or '(none)'}, Drug: {drug_name or '(none)'}")
+        return (company, drug_name)
+        
+    except Exception as e:
+        logger.error(f"[ERROR] Company/drug extraction failed: {str(e)}")
+        return ("", "")
+
+
 def process_raw_source(raw) -> Dict:
     """
     Process a RawSource record using OpenAI.
     Always outputs full canonical schema. Never omits fields.
     Uses empty string when unknown.
+    Also extracts company and drug_name for risk engine.
     """
     api_key = os.getenv("OPENAI_API_KEY")
 
@@ -208,6 +267,12 @@ Rules:
                 content = content[4:]
         result = json.loads(content)
         normalized = normalize_event_schema(result)
+        
+        # Extract company and drug_name for risk engine
+        company, drug_name = extract_company_drug(raw)
+        normalized["company"] = company
+        normalized["drug_name"] = drug_name
+        
         logger.info(f"[OK] Successfully processed RawSource ID {raw.id}")
         return normalized
 

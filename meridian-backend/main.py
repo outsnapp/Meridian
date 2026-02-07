@@ -6,6 +6,7 @@ Main API server with endpoints for data ingestion, processing, and event retriev
 """
 
 import os
+import json
 import logging
 from datetime import datetime, timedelta
 from typing import Optional, List
@@ -554,6 +555,101 @@ def reset_database(db: Session = Depends(get_db)):
         db.rollback()
         logger.error(f"[ERROR] Reset failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Reset error: {str(e)}")
+
+
+@app.get("/signals/{signal_id}/analysis")
+def get_signal_analysis(signal_id: int, db: Session = Depends(get_db)):
+    """
+    Get risk analysis for a signal (event).
+    Computes financial impact, regulatory probability, timeline, and confidence.
+    Returns cached result from risk_models or computes on-the-fly.
+    """
+    from services.risk_engine import run_risk_engine
+    from models import RiskModel
+    
+    # Check if analysis already exists
+    risk_model = db.query(RiskModel).filter(RiskModel.signal_id == signal_id).first()
+    
+    if risk_model:
+        # Return cached analysis
+        try:
+            methodology = json.loads(risk_model.explanation_json) if risk_model.explanation_json else {}
+        except:
+            methodology = {}
+        
+        return {
+            "status": "ok",
+            "probability": risk_model.probability,
+            "loss_min": risk_model.loss_min,
+            "loss_max": risk_model.loss_max,
+            "expected_days_min": risk_model.expected_days_min,
+            "expected_days_max": risk_model.expected_days_max,
+            "confidence_score": risk_model.confidence_score,
+            "confidence_band": "High" if risk_model.confidence_score >= 0.7 else "Medium" if risk_model.confidence_score >= 0.4 else "Low",
+            "methodology": methodology
+        }
+    
+    # Compute new analysis
+    try:
+        result = run_risk_engine(signal_id, db)
+        return result
+    except Exception as e:
+        logger.error(f"[ERROR] Risk engine failed for signal {signal_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Analysis error: {str(e)}")
+
+
+@app.get("/signals/{signal_id}/explanation")
+def get_signal_explanation(signal_id: int, db: Session = Depends(get_db)):
+    """
+    Get methodology explanation for a signal's risk analysis.
+    Returns the explanation_json with financial_basis, risk_basis, timeline_basis, confidence_basis.
+    """
+    from models import RiskModel
+    
+    risk_model = db.query(RiskModel).filter(RiskModel.signal_id == signal_id).first()
+    
+    if not risk_model:
+        raise HTTPException(status_code=404, detail="No analysis found for this signal")
+    
+    try:
+        methodology = json.loads(risk_model.explanation_json) if risk_model.explanation_json else {}
+        return {
+            "status": "ok",
+            "methodology": methodology
+        }
+    except Exception as e:
+        logger.error(f"[ERROR] Failed to parse explanation: {str(e)}")
+        return {
+            "status": "ok",
+            "methodology": {
+                "financial_basis": "Explanation parsing error",
+                "risk_basis": "Explanation parsing error",
+                "timeline_basis": "Explanation parsing error",
+                "confidence_basis": "Explanation parsing error"
+            }
+        }
+
+
+class RecalculateRequest(BaseModel):
+    signal_id: int
+
+
+@app.post("/risk-engine/recalculate")
+def recalculate_risk(request: RecalculateRequest, db: Session = Depends(get_db)):
+    """
+    Force recompute risk analysis for a signal.
+    Overwrites existing risk_models entry.
+    """
+    from services.risk_engine import run_risk_engine
+    
+    try:
+        result = run_risk_engine(request.signal_id, db)
+        if result.get("status") == "insufficient_data":
+            return result
+        return result
+    except Exception as e:
+        logger.error(f"[ERROR] Recalculate failed for signal {request.signal_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Recalculation error: {str(e)}")
 
 
 # Error handler for uncaught exceptions

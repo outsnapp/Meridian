@@ -46,7 +46,8 @@ def init_db():
     Initialize database by creating all tables.
     Runs migrations for new columns. Called on application startup.
     """
-    from models import RawSource, Event  # Import here to avoid circular imports
+    from models import (RawSource, Event, HistoricalEvent, 
+                        FinancialProfile, RegulatoryAction, RiskModel)  # Import here to avoid circular imports
     Base.metadata.create_all(bind=engine)
     migrate_db()
     print("[OK] Database initialized successfully")
@@ -74,6 +75,8 @@ def migrate_db():
         ("positioning_after", "TEXT"),
         ("agent_action_log", "TEXT"),
         ("article_url", "TEXT"),
+        ("company", "VARCHAR(255)"),
+        ("drug_name", "VARCHAR(255)"),
     ]
     with engine.connect() as conn:
         for col_name, col_type in new_columns:
