@@ -15,107 +15,91 @@ const TUTORIAL_STEPS: Record<
   1: {
     selector: '[data-tutorial="intelligence-feed"]',
     title: "Intelligence Feed",
-    description:
-      "Your main hub for AI-powered market strategy signals. Here you'll see the Prediction Tracker (past predictions vs actual outcomes), urgency-filtered reports (High / Medium), and executive cards for each signal with impact analysis, risk estimates, and recommended actions.",
+    description: "Your hub for market strategy signals: Prediction Tracker, urgency-filtered reports, and executive cards with impact and recommendations.",
     Icon: Rss,
   },
   2: {
     selector: '[data-tutorial="chat"]',
     title: "Chat",
-    description:
-      "Discuss strategic response and decisions linked to intelligence signals. Share cards from the feed to start threads, invite colleagues by role, and use Generate Brief to get AI summaries of the conversation. Export threads to PDF for leadership.",
+    description: "Discuss signals, share cards to start threads, invite by role, get AI briefs, and export to PDF.",
     Icon: MessageCircle,
   },
   3: {
     selector: '[data-tutorial="analytics"]',
     title: "Analytics",
-    description:
-      "View signal trends, breakdown by type and urgency, and impact distribution. Use this view to spot patterns across risks and opportunities and to support strategic planning and reporting.",
+    description: "Signal trends by type and urgency, plus impact distribution for planning and reporting.",
     Icon: BarChart3,
   },
   4: {
     selector: '[data-tutorial="risk-heatmap"]',
     title: "Risk Heatmap",
-    description:
-      "See plant-level (or entity-level) risk at a glance: risk level, revenue exposure, and timeline. One screen to prioritize which facilities or products need attention first.",
+    description: "Plant-level risk at a glance: risk level, revenue exposure, and timeline.",
     Icon: Map,
   },
   5: {
     selector: '[data-tutorial="fetch-live-data"]',
     title: "Fetch Live Data",
-    description:
-      "Pull in the latest intelligence from live sources (e.g. OpenFDA, Serper, CDSCO) and process it with AI. Use this to refresh your feed with new signals and keep your strategy view up to date.",
+    description: "Pull latest intelligence from OpenFDA, Serper, CDSCO and refresh your feed.",
     Icon: Zap,
   },
   6: {
     selector: '[data-tutorial="feed-department-selector"]',
     title: "Department / Role",
-    description:
-      "Switch your view by department (e.g. Executive / Strategy, Medical, Commercial). Reports and recommendations are tailored to the selected role so you see what matters for your function.",
+    description: "Switch by role (Executive, Medical, Commercial). Reports are tailored to your function.",
     Icon: Building2,
   },
   7: {
     selector: '[data-tutorial="feed-prediction-tracker"]',
     title: "Prediction Tracker",
-    description:
-      "See how past predictions compared to actual outcomes. This builds credibility by showing predicted vs actual timelines and results. Expand or collapse to review historical performance.",
+    description: "Past predictions vs actual outcomes. Expand to review historical performance.",
     Icon: TrendingUp,
   },
   8: {
     selector: '[data-tutorial="feed-urgency-filter"]',
     title: "Decision urgency",
-    description:
-      "Filter reports by urgency (High, Medium, Low). Click a button to see only the signals at that urgency level. Use this to prioritize which reports to act on first.",
+    description: "Filter by High, Medium, or Low to prioritize which reports to act on first.",
     Icon: Filter,
   },
-  // Report view (inside an urgency level) — we auto-select High and show the first card's sections
   9: {
     selector: '[data-tutorial="report-impact-analysis"]',
     title: "Impact Analysis",
-    description:
-      "This section summarizes how the signal affects your strategy: key risks, opportunities, and what to watch. Use it to quickly understand the strategic impact before diving into numbers.",
+    description: "Summary of how the signal affects your strategy: risks, opportunities, and what to watch.",
     Icon: FileText,
   },
   10: {
     selector: '[data-tutorial="report-financial-risk-timeline"]',
     title: "Financial impact & timeline",
-    description:
-      "See estimated loss range (in your currency and scale), regulatory probability, and expected timeline. All figures are normalized so you can compare across markets and units.",
+    description: "Loss range (your currency), regulatory probability, and expected timeline.",
     Icon: FileText,
   },
   11: {
     selector: '[data-tutorial="report-counterfactual"]',
     title: "Counterfactual scenarios",
-    description:
-      "Best / base / conservative cases (e.g. 100%, 70%, 50% impact) help you plan for different outcomes. Use these for scenario planning and stress testing.",
+    description: "Best / base / conservative cases (e.g. 100%, 70%, 50%) for scenario planning.",
     Icon: FileText,
   },
   12: {
     selector: '[data-tutorial="report-how-calculated"]',
     title: "How this was calculated",
-    description:
-      "Expand to see original revenue, conversion to a standard unit, the formula used, and final loss range. Supports audit and validation, especially for large pharma.",
+    description: "Expand for original revenue, conversion, formula, and final loss range.",
     Icon: FileText,
   },
   13: {
     selector: '[data-tutorial="report-recommended-action"]',
     title: "Recommended action & share",
-    description:
-      "The AI-recommended next step for this signal. Use Share to send the card to Chat, invite colleagues, or export for leadership.",
+    description: "AI-recommended next step. Use Share to send to Chat or export for leadership.",
     Icon: FileText,
   },
   14: {
     selector: '[data-tutorial="report-view-full-ai-analysis"]',
     title: "View full AI analysis",
-    description:
-      "Expand to see the complete AI-generated analysis: assumptions, signals, positioning, and messaging. Use this when you need the full detail before making a decision or sharing with stakeholders.",
+    description: "Expand for full AI analysis: assumptions, positioning, and messaging.",
     Icon: FileText,
   },
   15: {
     selector: '[data-tutorial="report-share-button"]',
     title: "Share",
-    description:
-      "Share this intelligence card to Chat to start a thread, invite colleagues by role, and collaborate on the response. You can also export threads to PDF for leadership.",
+    description: "Share to Chat to start a thread, invite colleagues, or export to PDF.",
     Icon: FileText,
   },
 }
