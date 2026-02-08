@@ -1,10 +1,12 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Moon, Sun, Bell, User, Building2, MapPin } from "lucide-react"
+import { Moon, Sun, Bell, User, Building2, MapPin, Trash2, BookOpen } from "lucide-react"
 import { useTheme } from "next-themes"
+import { toast } from "sonner"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { Button } from "@/components/ui/button"
 import {
   Select,
   SelectContent,
@@ -15,9 +17,10 @@ import {
 import { useProfile } from "@/lib/profile-context"
 import { useDepartment } from "@/lib/department-context"
 import { useSettings } from "@/lib/settings-context"
+import { useSharedItems } from "@/lib/shared-items-context"
+import { resetTutorialPrompt } from "@/components/tutorial-prompt-modal"
 import { getProfile } from "@/lib/profile-config"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
 
 const readOnlyInputClass =
   "flex h-10 w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm text-foreground cursor-default"
@@ -27,6 +30,7 @@ export function SettingsPanel() {
   const { profileId } = useProfile()
   const { department } = useDepartment()
   const { getRegion, setRegion, notificationsEnabled, setNotificationsEnabled, REGIONS } = useSettings()
+  const { clearAllChatsAndShared } = useSharedItems()
   const profile = getProfile(profileId)
   const currentRegion = getRegion(profileId)
   const departmentLabel = profile.subDepartments.find((s) => s.id === department)?.label ?? department
@@ -143,6 +147,57 @@ export function SettingsPanel() {
             </Label>
             <Switch id="theme" checked={isDark} onCheckedChange={toggleTheme} />
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <BookOpen className="h-4 w-4" />
+            Welcome tutorial
+          </CardTitle>
+          <CardDescription>
+            The &quot;Would you like a quick tutorial?&quot; prompt appears only on first visit. Use this to show it again (e.g. for testing).
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => {
+              resetTutorialPrompt()
+              toast.success("Welcome prompt reset. Reloading…")
+              window.location.reload()
+            }}
+          >
+            <BookOpen className="h-3.5 w-3.5" />
+            Show welcome prompt again
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Trash2 className="h-4 w-4" />
+            Chats & shared items
+          </CardTitle>
+          <CardDescription>
+            Clear all shared intelligence threads and chat messages so you can start fresh
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => {
+              clearAllChatsAndShared()
+              toast.success("Chats and shared items cleared. You can use them again.")
+            }}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Clear chats and shared items
+          </Button>
         </CardContent>
       </Card>
     </div>

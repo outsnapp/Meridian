@@ -58,6 +58,8 @@ interface SharedItemsContextValue {
   addMessage: (sharedItemId: string, author: string, text: string, type?: ChatMessageType, role?: string) => void
   markThreadRead: (sharedItemId: string) => void
   getUnreadCount: (sharedItemId: string) => number
+  /** Clear all shared items, chat messages, and read state (localStorage + in-memory). */
+  clearAllChatsAndShared: () => void
 }
 
 const STORAGE_KEY = "meridian-shared-items"
@@ -72,6 +74,7 @@ const defaultContext: SharedItemsContextValue = {
   addMessage: () => {},
   markThreadRead: () => {},
   getUnreadCount: () => 0,
+  clearAllChatsAndShared: () => {},
 }
 
 const SharedItemsContext = createContext<SharedItemsContextValue>(defaultContext)
@@ -98,10 +101,27 @@ export function SharedItemsProvider({ children }: { children: ReactNode }) {
   const [messagesByItem, setMessagesByItem] = useState<Record<string, ChatMessage[]>>({})
   const [readAtByItem, setReadAtByItem] = useState<Record<string, string>>({})
 
+  // Initial load from localStorage
   useEffect(() => {
     setSharedItems(loadFromStorage(STORAGE_KEY, []))
     setMessagesByItem(loadFromStorage(MESSAGES_KEY, {}))
     setReadAtByItem(loadFromStorage(READ_AT_KEY, {}))
+  }, [])
+
+  // Sync when another tab/window clears or updates shared data (e.g. Strategic Lead clears → Medical Officer's tab sees it)
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    function onStorage(e: StorageEvent) {
+      if (e.key === STORAGE_KEY) {
+        setSharedItems(e.newValue ? JSON.parse(e.newValue) : [])
+      } else if (e.key === MESSAGES_KEY) {
+        setMessagesByItem(e.newValue ? JSON.parse(e.newValue) : {})
+      } else if (e.key === READ_AT_KEY) {
+        setReadAtByItem(e.newValue ? JSON.parse(e.newValue) : {})
+      }
+    }
+    window.addEventListener("storage", onStorage)
+    return () => window.removeEventListener("storage", onStorage)
   }, [])
 
   const addSharedItem = useCallback((item: Omit<SharedItem, "id" | "createdAt">) => {
@@ -189,6 +209,19 @@ export function SharedItemsProvider({ children }: { children: ReactNode }) {
     [sharedItems]
   )
 
+  const clearAllChatsAndShared = useCallback(() => {
+    setSharedItems([])
+    setMessagesByItem({})
+    setReadAtByItem({})
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem(STORAGE_KEY)
+        localStorage.removeItem(MESSAGES_KEY)
+        localStorage.removeItem(READ_AT_KEY)
+      } catch {}
+    }
+  }, [])
+
   return (
     <SharedItemsContext.Provider
       value={{
@@ -199,6 +232,7 @@ export function SharedItemsProvider({ children }: { children: ReactNode }) {
         addMessage,
         markThreadRead,
         getUnreadCount,
+        clearAllChatsAndShared,
       }}
     >
       {children}

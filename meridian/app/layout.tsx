@@ -3,6 +3,9 @@ import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import { Toaster } from 'sonner'
 import { ThemeProvider } from '@/components/theme-provider'
+import { TutorialProvider } from '@/lib/tutorial-context'
+import { TutorialPromptModal } from '@/components/tutorial-prompt-modal'
+import { TutorialOverlay } from '@/components/tutorial-overlay'
 
 import './globals.css'
 
@@ -26,7 +29,11 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className="font-sans antialiased">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          {children}
+          <TutorialProvider>
+            {children}
+            <TutorialPromptModal />
+            <TutorialOverlay />
+          </TutorialProvider>
           <Toaster position="top-right" richColors />
         </ThemeProvider>
       </body>

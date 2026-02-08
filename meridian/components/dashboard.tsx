@@ -25,7 +25,8 @@ import { subDepartmentToApiRole } from "@/lib/profile-config"
 import type { EventSchema } from "@/lib/event-schema"
 import { getUrgencyLevel, type UrgencyLevel } from "@/lib/urgency-utils"
 import { UrgencyFilter } from "@/components/urgency-filter"
-
+import { SunPharmaDemoProvider, useSunPharmaDemo } from "@/lib/demo-mode-context"
+import { useTutorial } from "@/lib/tutorial-context"
 function DashboardWithProfile() {
   const { profileId } = useProfile()
   return (
@@ -33,7 +34,9 @@ function DashboardWithProfile() {
       <DepartmentProvider profileId={profileId}>
         <SharedItemsProvider>
           <ViewProvider>
-            <DashboardBody />
+            <SunPharmaDemoProvider>
+              <DashboardBody />
+            </SunPharmaDemoProvider>
           </ViewProvider>
         </SharedItemsProvider>
       </DepartmentProvider>
@@ -52,7 +55,10 @@ export function Dashboard() {
 function DashboardBody() {
   const { department } = useDepartment()
   const { profileId } = useProfile()
-  const { view } = useView()
+  const { view, setView } = useView()
+  const { isSunPharmaActive } = useSunPharmaDemo()
+  const { tutorialStep } = useTutorial()
+
   const [events, setEvents] = useState<EventSchema[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -61,6 +67,13 @@ function DashboardBody() {
   const [demoContext, setDemoContext] = useState<{ company_name?: string; markets?: string[] } | null>(null)
   const mainRef = useRef<HTMLElement>(null)
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+
+  // When tutorial is on feed or report steps, show Intelligence Feed and (for report steps) select High urgency so cards are visible
+  useEffect(() => {
+    if (tutorialStep == null) return
+    if (tutorialStep >= 6 && tutorialStep <= 15) setView("feed")
+    if (tutorialStep >= 9 && tutorialStep <= 15) setSelectedUrgency((prev) => prev ?? "High")
+  }, [tutorialStep, setView, setSelectedUrgency])
 
   useEffect(() => {
     fetch(api.demoStatus())
@@ -184,6 +197,7 @@ function DashboardBody() {
       cardRefs={cardRefs}
       setCardRef={setCardRef}
       demoContext={demoContext}
+      isSunPharmaActive={isSunPharmaActive}
     />
   )
 }
@@ -202,6 +216,7 @@ function DashboardContent({
   cardRefs,
   setCardRef,
   demoContext,
+  isSunPharmaActive,
 }: {
   view: "feed" | "chat" | "analytics" | "heatmap" | "settings"
   events: EventSchema[]
@@ -216,6 +231,7 @@ function DashboardContent({
   cardRefs: React.MutableRefObject<Map<string, HTMLDivElement>>
   setCardRef: (cardId: string, el: HTMLDivElement | null) => void
   demoContext: { company_name?: string; markets?: string[] } | null
+  isSunPharmaActive: boolean
 }) {
   if (view === "chat") {
     return (
@@ -311,17 +327,19 @@ function DashboardContent({
             </p>
           </div>
           <div className="flex items-center gap-4">
-            {demoContext?.company_name && (
+            {demoContext?.company_name && isSunPharmaActive && (
               <div className="hidden sm:flex flex-col items-end text-right border-l border-border pl-4">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Analyzing: {demoContext.company_name} (Context)
+                  Sun Pharma demo mode
                 </span>
                 <span className="text-[10px] text-muted-foreground mt-0.5">
-                  Markets: {demoContext.markets?.join(" | ") || "US | India | EU"}
+                  Analyzing: {demoContext.company_name} · {demoContext.markets?.join(" | ") || "US | India | EU"}
                 </span>
               </div>
             )}
-            <DepartmentSelector />
+            <div data-tutorial="feed-department-selector">
+              <DepartmentSelector />
+            </div>
           </div>
         </header>
 
@@ -349,9 +367,11 @@ function DashboardContent({
             </div>
           ) : (
             <>
-              <PredictionTrackerSection />
+              <div data-tutorial="feed-prediction-tracker">
+                <PredictionTrackerSection />
+              </div>
               {/* Selection bar - always shown when we have events, primary focus */}
-              <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+              <div data-tutorial="feed-urgency-filter" className="rounded-xl border border-border bg-card p-6 shadow-sm">
                 <p className="mb-4 text-sm font-semibold text-foreground">
                   Choose decision urgency to view reports
                 </p>
@@ -377,16 +397,16 @@ function DashboardContent({
                       </p>
                     </div>
                   ) : (
-                    <div className="flex flex-col gap-6">
+                    <div className="flex flex-col gap-6" data-tutorial="report-cards-container">
                       {events
                         .filter(isVerifiedSource)
-                        .map((event) => (
+                        .map((event, i) => (
                           <div
                             key={event.id}
                             ref={(el) => setCardRef(`event-${event.id}`, el)}
                             data-card-id={`event-${event.id}`}
                           >
-                            <UnifiedExecutiveCard event={event} />
+                            <UnifiedExecutiveCard event={event} isFirstForTutorial={i === 0} />
                           </div>
                         ))}
                     </div>

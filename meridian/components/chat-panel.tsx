@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { jsPDF } from "jspdf"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -20,11 +21,12 @@ import {
   Sparkles,
   FileText,
   Download,
+  Trash2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export function ChatPanel() {
-  const { sharedItemsForPosition, getMessages, addMessage, markThreadRead, getUnreadCount } = useSharedItems()
+  const { sharedItemsForPosition, getMessages, addMessage, markThreadRead, getUnreadCount, clearAllChatsAndShared } = useSharedItems()
   const { profileId } = useProfile()
   const profile = getProfile(profileId)
   const sharedItems = sharedItemsForPosition(profileId)
@@ -171,13 +173,33 @@ export function ChatPanel() {
       {/* Left: Shared Intelligence Threads */}
       <aside className="w-80 shrink-0 flex flex-col border-r border-border bg-card/50 shadow-sm">
         <div className="p-4 border-b border-border bg-gradient-to-b from-card to-card/80">
-          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <MessageCircle className="h-4 w-4 text-[hsl(var(--accent))]" />
-            Shared Intelligence
-          </h2>
-          <p className="text-xs text-muted-foreground mt-1">
-            Threads linked to intelligence signals
-          </p>
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <MessageCircle className="h-4 w-4 text-[hsl(var(--accent))]" />
+                Shared Intelligence
+              </h2>
+              <p className="text-xs text-muted-foreground mt-1">
+                Threads linked to intelligence signals
+              </p>
+            </div>
+            {sharedItems.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="shrink-0 gap-1.5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                onClick={() => {
+                  clearAllChatsAndShared()
+                  setSelectedId(null)
+                  setGeneratedBriefByThread({})
+                  toast.success("All chats and shared reports deleted. You can start fresh.")
+                }}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Clear all
+              </Button>
+            )}
+          </div>
         </div>
         <ScrollArea className="flex-1">
           <div className="p-2 space-y-1.5">

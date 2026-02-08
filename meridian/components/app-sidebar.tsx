@@ -1,6 +1,6 @@
 "use client"
 
-import { Rss, BarChart3, MessageCircle, Settings, Zap, ChevronDown, Map } from "lucide-react"
+import { Rss, BarChart3, MessageCircle, Settings, Zap, ChevronDown, Map, Building2, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useState } from "react"
 import { toast } from "sonner"
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { api } from "@/lib/api"
 import { useView } from "@/lib/view-context"
 import { useProfile } from "@/lib/profile-context"
+import { useSunPharmaDemo } from "@/lib/demo-mode-context"
 import { PROFILES, getProfile, type ProfileId } from "@/lib/profile-config"
 import {
   DropdownMenu,
@@ -44,6 +45,8 @@ export function AppSidebar() {
             ? "Risk Heatmap"
             : "Intelligence Feed"
   const [isLoading, setIsLoading] = useState(false)
+  const [isDemoLoading, setIsDemoLoading] = useState(false)
+  const { isSunPharmaActive, setSunPharmaActive } = useSunPharmaDemo()
 
   async function handleLoadIntelligence() {
     if (isLoading) return
@@ -91,6 +94,17 @@ export function AppSidebar() {
                 key={item.label}
                 type="button"
                 onClick={() => setView(item.view)}
+                data-tutorial={
+                  item.view === "feed"
+                    ? "intelligence-feed"
+                    : item.view === "chat"
+                      ? "chat"
+                      : item.view === "analytics"
+                        ? "analytics"
+                        : item.view === "heatmap"
+                          ? "risk-heatmap"
+                          : undefined
+                }
                 className={cn(
                   "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
                   isActive
@@ -112,6 +126,7 @@ export function AppSidebar() {
             size="lg"
             onClick={handleLoadIntelligence}
             disabled={isLoading}
+            data-tutorial="fetch-live-data"
             className="w-full gap-2.5 h-11 rounded-lg font-medium shadow-sm bg-[hsl(var(--sidebar-primary))] hover:bg-[hsl(var(--sidebar-primary))]/90 text-[hsl(var(--sidebar-primary-foreground))]"
           >
             <Zap className={cn("h-4 w-4 shrink-0", isLoading && "animate-pulse")} />
@@ -121,28 +136,70 @@ export function AppSidebar() {
             Fetches live data and processes with AI
           </p>
         </div>
-        <div className="mt-3 px-3">
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full gap-2 rounded-lg text-xs font-medium border-dashed"
-            onClick={async () => {
-              try {
-                const res = await fetch(api.demoLoadSunPharma(), { method: "POST" })
-                const data = await res.json()
-                if (res.ok && data.status === "ok") {
-                  toast.success(`Loaded ${data.events_created ?? 0} signals. Risk models updated.`)
-                  dispatchRefresh()
-                } else {
-                  toast.error(data.detail || "Load failed")
+        {/* Sun Pharma demo toggle: visible, high-contrast, on/off */}
+        <div className="mt-4 px-3">
+          <p className="text-[10px] font-medium uppercase tracking-wider text-[hsl(var(--sidebar-muted))] mb-2 text-center">
+            Demo
+          </p>
+          {isSunPharmaActive ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full gap-2 rounded-lg text-xs font-semibold border-2 border-amber-500/60 bg-amber-500/10 text-amber-700 dark:text-amber-400 dark:bg-amber-500/15 dark:border-amber-400/50 hover:bg-amber-500/20 dark:hover:bg-amber-500/25"
+              disabled={isDemoLoading}
+              onClick={async () => {
+                setIsDemoLoading(true)
+                try {
+                  const res = await fetch(api.reset(), { method: "DELETE" })
+                  if (res.ok) {
+                    setSunPharmaActive(false)
+                    dispatchRefresh()
+                    setView("feed")
+                    toast.success("Exited Sun Pharma demo. Feed reset.")
+                  } else {
+                    const data = await res.json().catch(() => ({}))
+                    toast.error(data.detail || "Reset failed")
+                  }
+                } catch {
+                  toast.error("Could not reset. Is the backend running?")
+                } finally {
+                  setIsDemoLoading(false)
                 }
-              } catch (e) {
-                toast.error("Could not load Sun Pharma case")
-              }
-            }}
-          >
-            Load Sun Pharma Case
-          </Button>
+              }}
+            >
+              <X className="h-3.5 w-3.5 shrink-0" />
+              {isDemoLoading ? "Resetting…" : "Exit Sun Pharma Demo"}
+            </Button>
+          ) : (
+            <Button
+              variant="default"
+              size="sm"
+              className="w-full gap-2 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white border-0 shadow-md"
+              disabled={isDemoLoading}
+              onClick={async () => {
+                setIsDemoLoading(true)
+                try {
+                  const res = await fetch(api.demoLoadSunPharma(), { method: "POST" })
+                  const data = await res.json()
+                  if (res.ok && data.status === "ok") {
+                    setSunPharmaActive(true)
+                    dispatchRefresh()
+                    setView("feed")
+                    toast.success(`Sun Pharma demo loaded. ${data.events_created ?? 0} signals.`)
+                  } else {
+                    toast.error(data.detail || "Load failed")
+                  }
+                } catch {
+                  toast.error("Could not load Sun Pharma case")
+                } finally {
+                  setIsDemoLoading(false)
+                }
+              }}
+            >
+              <Building2 className="h-3.5 w-3.5 shrink-0" />
+              {isDemoLoading ? "Loading…" : "Load Sun Pharma Case"}
+            </Button>
+          )}
         </div>
       </div>
 

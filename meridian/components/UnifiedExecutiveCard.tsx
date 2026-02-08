@@ -80,9 +80,11 @@ interface RiskAnalysis {
 
 interface UnifiedExecutiveCardProps {
   event: EventSchema
+  /** When true, add data-tutorial attributes for the in-report tutorial steps */
+  isFirstForTutorial?: boolean
 }
 
-export function UnifiedExecutiveCard({ event }: UnifiedExecutiveCardProps) {
+export function UnifiedExecutiveCard({ event, isFirstForTutorial }: UnifiedExecutiveCardProps) {
   const [shareOpen, setShareOpen] = useState(false)
   const [analysisExpanded, setAnalysisExpanded] = useState(false)
   const [precedents, setPrecedents] = useState<Array<{ title: string; year: string; what_happened: string; outcome: string; source: string; url?: string }>>([])
@@ -184,7 +186,7 @@ export function UnifiedExecutiveCard({ event }: UnifiedExecutiveCardProps) {
       )}
 
       {/* 2. Impact Analysis (highlight box) */}
-      <div className="mt-5">
+      <div className="mt-5" {...(isFirstForTutorial ? { "data-tutorial": "report-impact-analysis" } : {})}>
         <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
           Impact Analysis
         </p>
@@ -207,7 +209,7 @@ export function UnifiedExecutiveCard({ event }: UnifiedExecutiveCardProps) {
           </p>
         </div>
       ) : riskAnalysis?.status === "ok" ? (
-        <div className="mt-5 space-y-4">
+        <div className="mt-5 space-y-4" {...(isFirstForTutorial ? { "data-tutorial": "report-financial-risk-timeline" } : {})}>
           {/* Impact Estimation — always show currency + scale, never raw numbers */}
           {riskAnalysis.loss_min != null && riskAnalysis.loss_max != null && (
             <div className="rounded-lg border border-border bg-card p-4">
@@ -266,7 +268,7 @@ export function UnifiedExecutiveCard({ event }: UnifiedExecutiveCardProps) {
 
           {/* Counterfactual: Scenario A (100%) / B (70%) / C (50%) — unit-aware display */}
           {riskAnalysis.scenarios && (
-            <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/30 dark:bg-amber-950/20 p-4">
+            <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/30 dark:bg-amber-950/20 p-4" {...(isFirstForTutorial ? { "data-tutorial": "report-counterfactual" } : {})}>
               <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-3">
                 If company does nothing vs acts early (Scenario A / B / C)
               </p>
@@ -298,7 +300,7 @@ export function UnifiedExecutiveCard({ event }: UnifiedExecutiveCardProps) {
 
           {/* Methodology (expandable) — includes Original revenue, Conversion, Formula, Final units */}
           {riskAnalysis.methodology && (
-            <div className="rounded-lg border border-border bg-muted/10 p-4">
+            <div className="rounded-lg border border-border bg-muted/10 p-4" {...(isFirstForTutorial ? { "data-tutorial": "report-how-calculated" } : {})}>
               <button
                 type="button"
                 onClick={() => setMethodologyExpanded(!methodologyExpanded)}
@@ -373,7 +375,7 @@ export function UnifiedExecutiveCard({ event }: UnifiedExecutiveCardProps) {
       ) : null}
 
       {/* Recommended Action - full-width box (full text visible) */}
-      <div className="mt-5">
+      <div className="mt-5" {...(isFirstForTutorial ? { "data-tutorial": "report-recommended-action" } : {})}>
         <div className="flex w-full items-start gap-3 rounded-md bg-primary px-4 py-3 text-primary-foreground">
           <span className="min-w-0 flex-1 whitespace-normal text-left text-sm font-medium leading-relaxed">
             {event.what_to_do_now}
@@ -385,7 +387,7 @@ export function UnifiedExecutiveCard({ event }: UnifiedExecutiveCardProps) {
           )}
         </div>
         {/* Share */}
-        <div className="mt-3 flex justify-end items-center">
+        <div className="mt-3 flex justify-end items-center" {...(isFirstForTutorial ? { "data-tutorial": "report-share-button" } : {})}>
           <TooltipProvider delayDuration={300}>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -593,7 +595,7 @@ export function UnifiedExecutiveCard({ event }: UnifiedExecutiveCardProps) {
         )}
 
         {/* 11. Supporting Evidence — 3 similar FDA cases with links and outcomes */}
-        <div className="mb-5">
+        <div className="mb-5" {...(isFirstForTutorial ? { "data-tutorial": "report-supporting-evidence" } : {})}>
           <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1">
             Supporting Evidence
           </p>
@@ -674,7 +676,7 @@ export function UnifiedExecutiveCard({ event }: UnifiedExecutiveCardProps) {
         </div>
           </>
         ) : (
-          <div className="pt-4">
+          <div className="pt-4" {...(isFirstForTutorial ? { "data-tutorial": "report-view-full-ai-analysis" } : {})}>
             <Button
               variant="ghost"
               size="sm"
