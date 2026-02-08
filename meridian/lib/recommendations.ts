@@ -10,7 +10,7 @@ export interface Recommendation {
   confidence: string
 }
 
-type CardId = "biosimilar-entry" | "medicare-reimbursement"
+export type CardId = "biosimilar-entry" | "medicare-reimbursement" | "regulatory-risk"
 
 function r(
   sections: [string, string][],
@@ -291,6 +291,140 @@ const recommendations: Record<CardId, Record<LegacyDepartment, Recommendation>> 
       "Moderate -- anchored in CMS proposed rulemaking and confirmed PBM formulary review cycle deadlines.",
     ),
   },
+  "regulatory-risk": {
+    executive: r(
+      [
+        [
+          "PRIMARY OUTCOME",
+          "Protect operations and stakeholder confidence by aligning with compliance timelines and communicating remediation progress.",
+        ],
+        [
+          "WHAT'S CHANGING",
+          "Regulatory observations or enforcement actions create a defined window for corrective action. Delayed response risks escalated sanctions, import restrictions, or reputational damage.",
+        ],
+        [
+          "WHY IT MATTERS",
+          "Relevant to US and international operations. Early alignment with regulatory expectations reduces escalation risk and supports continuity of supply.",
+        ],
+        [
+          "WHAT TO DO NOW",
+          "Monitor and align with compliance timeline. Convene cross-functional team to track remediation and communicate status to key stakeholders.",
+        ],
+        [
+          "DECISION URGENCY",
+          "High -- regulatory timelines are non-negotiable; delayed response risks further enforcement.",
+        ],
+        [
+          "RECOMMENDED NEXT STEP",
+          "Schedule compliance review within 5 business days and establish clear ownership for corrective action tracking.",
+        ],
+        [
+          "ASSUMPTIONS & SIGNALS",
+          "Based on regulatory authority timelines, historical precedent for similar observations, and current remediation status.",
+        ],
+      ],
+      "High -- supported by regulatory precedent and company response status.",
+    ),
+    finance: r(
+      [
+        [
+          "PRIMARY OUTCOME",
+          "Assess and model potential financial exposure from regulatory action, including fines, supply disruption, or revenue impact.",
+        ],
+        [
+          "WHAT'S CHANGING",
+          "Regulatory observations introduce quantifiable risk to revenue and margin. Import alerts or facility restrictions can affect supply chain and working capital.",
+        ],
+        [
+          "WHY IT MATTERS",
+          "Material regulatory action may affect earnings guidance, analyst consensus, and stock performance. Early quantification supports investor communication.",
+        ],
+        [
+          "WHAT TO DO NOW",
+          "Run scenario analysis on revenue at risk and potential remediation costs. Update Q&F forecasts and prepare contingency messaging for investor relations.",
+        ],
+        [
+          "DECISION URGENCY",
+          "High -- regulatory outcomes can materialize within 60–90 days; financial impact should be modeled ahead of next earnings cycle.",
+        ],
+        [
+          "RECOMMENDED NEXT STEP",
+          "Quantify exposure scenarios and brief treasury and IR within one week.",
+        ],
+        [
+          "ASSUMPTIONS & SIGNALS",
+          "Based on regulatory authority enforcement history, facility exposure, and supply chain dependencies.",
+        ],
+      ],
+      "Moderate-High -- contingent on regulatory timeline and remediation progress.",
+    ),
+    commercial: r(
+      [
+        [
+          "PRIMARY OUTCOME",
+          "Protect customer relationships and account confidence during regulatory remediation.",
+        ],
+        [
+          "WHAT'S CHANGING",
+          "Regulatory actions can trigger customer concerns about supply continuity, quality, and compliance. Proactive communication reduces churn and protects share.",
+        ],
+        [
+          "WHY IT MATTERS",
+          "Key accounts may seek alternative suppliers if confidence erodes. Early, transparent engagement preserves relationships.",
+        ],
+        [
+          "WHAT TO DO NOW",
+          "Prepare customer-facing messaging on remediation status and supply continuity. Prioritize high-value accounts for direct outreach.",
+        ],
+        [
+          "DECISION URGENCY",
+          "Medium-High -- customer sentiment can shift quickly; proactive communication is critical.",
+        ],
+        [
+          "RECOMMENDED NEXT STEP",
+          "Finalize customer communication playbook within 3 business days and brief field teams.",
+        ],
+        [
+          "ASSUMPTIONS & SIGNALS",
+          "Based on customer feedback patterns, account sensitivities, and competitive dynamics.",
+        ],
+      ],
+      "Moderate -- dependent on customer communication and remediation visibility.",
+    ),
+    "market-access": r(
+      [
+        [
+          "PRIMARY OUTCOME",
+          "Ensure regulatory compliance supports continued market access and payer confidence.",
+        ],
+        [
+          "WHAT'S CHANGING",
+          "Regulatory observations can affect formulary positioning and payer perception. Timely remediation protects access and reimbursement status.",
+        ],
+        [
+          "WHY IT MATTERS",
+          "Payer and HTA bodies monitor regulatory standing. Proactive evidence of compliance supports negotiations and avoids exclusion.",
+        ],
+        [
+          "WHAT TO DO NOW",
+          "Monitor regulatory status and prepare evidence packages for payers if requested. Align messaging with medical and regulatory teams.",
+        ],
+        [
+          "DECISION URGENCY",
+          "Medium -- payer impact depends on remediation timeline; early alignment reduces access risk.",
+        ],
+        [
+          "RECOMMENDED NEXT STEP",
+          "Draft payer communication template and coordinate with regulatory on timing.",
+        ],
+        [
+          "ASSUMPTIONS & SIGNALS",
+          "Based on payer contract terms, HTA evaluation criteria, and regulatory remediation milestones.",
+        ],
+      ],
+      "Moderate -- contingent on remediation progress and payer communication needs.",
+    ),
+  },
 }
 
 export function getRecommendation(
@@ -298,4 +432,12 @@ export function getRecommendation(
   department: LegacyDepartment,
 ): Recommendation {
   return recommendations[cardId][department]
+}
+
+/** Derive recommendation cardId from event title, summary, or tags */
+export function eventToCardId(title: string, summary: string, tags?: string | null): CardId {
+  const text = `${(title || "").toLowerCase()} ${(summary || "").toLowerCase()} ${(tags || "").toLowerCase()}`
+  if (/\bbiosimilar\b/i.test(text)) return "biosimilar-entry"
+  if (/\bmedicare\b|reimbursement|cms\b|part\s*b\b/i.test(text)) return "medicare-reimbursement"
+  return "regulatory-risk"
 }

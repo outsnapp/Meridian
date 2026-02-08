@@ -1,6 +1,6 @@
 "use client"
 
-import { ChevronDown, Sparkles, Check, AlertTriangle, AlertCircle } from "lucide-react"
+import { ChevronDown, Sparkles, Check, AlertTriangle, AlertCircle, Users } from "lucide-react"
 import {
   Collapsible,
   CollapsibleContent,
@@ -8,11 +8,19 @@ import {
 } from "@/components/ui/collapsible"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { useDepartment } from "@/lib/department-context"
 import { useProfile } from "@/lib/profile-context"
 import { subDepartmentToLegacyDepartment } from "@/lib/profile-config"
 import { getRecommendation } from "@/lib/recommendations"
-import { useState } from "react"
+import type { LegacyDepartment } from "@/lib/department-context"
+import { useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
 
 type ConfidenceLevel = "high" | "moderate" | "low"
@@ -51,8 +59,10 @@ const confidenceStyles: Record<ConfidenceLevel, { badge: string; icon: typeof Ch
   },
 }
 
+import type { CardId } from "@/lib/recommendations"
+
 interface AIRecommendationProps {
-  cardId: "biosimilar-entry" | "medicare-reimbursement"
+  cardId: CardId
 }
 
 const departmentLabels: Record<string, string> = {
@@ -62,6 +72,8 @@ const departmentLabels: Record<string, string> = {
   "market-access": "Market Access / Policy",
 }
 
+const LEGACY_DEPARTMENTS: LegacyDepartment[] = ["executive", "finance", "commercial", "market-access"]
+
 const highlightLabels = new Set([
   "RECOMMENDED NEXT STEP",
   "DECISION URGENCY",
@@ -69,10 +81,6 @@ const highlightLabels = new Set([
 
 const muted = new Set(["ASSUMPTIONS & SIGNALS"])
 
-/**
- * Splits content at the first sentence boundary so the lead sentence
- * can be rendered at normal weight while subsequent sentences are lighter.
- */
 function splitLeadSentence(content: string): [string, string | null] {
   const match = content.match(/^(.+?[.!?])\s+(.+)$/)
   if (match) return [match[1], match[2]]
@@ -83,8 +91,14 @@ export function AIRecommendation({ cardId }: AIRecommendationProps) {
   const { department } = useDepartment()
   const { profileId } = useProfile()
   const legacyDept = subDepartmentToLegacyDepartment(profileId, department)
-  const rec = getRecommendation(cardId, legacyDept)
+  const [viewAsDept, setViewAsDept] = useState<LegacyDepartment>(legacyDept)
+  const rec = getRecommendation(cardId, viewAsDept)
   const [isOpen, setIsOpen] = useState(true)
+
+  // When user switches their department in the sidebar, default to their new view
+  useEffect(() => {
+    setViewAsDept(legacyDept)
+  }, [legacyDept])
 
   return (
     <div className="mt-0">
@@ -97,7 +111,7 @@ export function AIRecommendation({ cardId }: AIRecommendationProps) {
               AI Recommendation
             </span>
             <span className="rounded-full bg-[hsl(var(--accent))]/10 px-2 py-0.5 text-[10px] font-medium text-[hsl(var(--accent))]">
-              {departmentLabels[legacyDept]}
+              {departmentLabels[viewAsDept]}
             </span>
           </div>
           <ChevronDown
@@ -108,6 +122,27 @@ export function AIRecommendation({ cardId }: AIRecommendationProps) {
           />
         </CollapsibleTrigger>
         <CollapsibleContent className="pt-3">
+          <div className="mb-3 flex items-center gap-2">
+            <Users className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              View as
+            </span>
+            <Select
+              value={viewAsDept}
+              onValueChange={(v) => setViewAsDept(v as LegacyDepartment)}
+            >
+              <SelectTrigger className="h-7 w-[160px] border-border/60 text-xs">
+                <SelectValue placeholder="Select perspective" />
+              </SelectTrigger>
+              <SelectContent>
+                {LEGACY_DEPARTMENTS.map((d) => (
+                  <SelectItem key={d} value={d} className="text-xs">
+                    {departmentLabels[d]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="rounded-md border border-[hsl(var(--accent))]/15 bg-[hsl(var(--accent))]/[0.03] px-4 py-4">
             <div className="flex flex-col gap-4">
               {rec.sections.map((section, idx) => {
@@ -132,7 +167,6 @@ export function AIRecommendation({ cardId }: AIRecommendationProps) {
                   )
                 }
 
-                // Scan optimization: split lead sentence for WHAT TO DO NOW
                 if (isWhatToDo) {
                   const [lead, rest] = splitLeadSentence(section.content)
                   return (

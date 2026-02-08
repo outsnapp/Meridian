@@ -500,7 +500,7 @@ function SignalContextCard({
   onExportPdf?: () => void
   isExportingPdf?: boolean
 }) {
-  const sn = snapshot ?? {}
+  const sn: Partial<CardSnapshot> = snapshot ?? {}
   const tags = (sn.tags ?? "").split(",").filter(Boolean)
   return (
     <div className="p-4 space-y-4">

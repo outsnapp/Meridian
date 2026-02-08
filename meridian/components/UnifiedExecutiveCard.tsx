@@ -9,12 +9,14 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { ShareDialog } from "@/components/share-dialog"
+import { AIRecommendation } from "@/components/ai-recommendation"
 import { useDepartment } from "@/lib/department-context"
 import { useProfile } from "@/lib/profile-context"
 import { subDepartmentToLegacyDepartment } from "@/lib/profile-config"
 import { getShareHint } from "@/lib/share-data"
+import { eventToCardId } from "@/lib/recommendations"
 import { api } from "@/lib/api"
-import { ArrowRight, Check, ChevronUp, Clock, History, Loader2, MessageSquare, RefreshCw, Share2 } from "lucide-react"
+import { ArrowRight, ChevronUp, Clock, History, Loader2, MessageSquare, RefreshCw, Share2 } from "lucide-react"
 
 function formatFetchedAgo(iso: string): string {
   try {
@@ -147,17 +149,6 @@ export function UnifiedExecutiveCard({ event, isFirstForTutorial }: UnifiedExecu
   )
 
   const isRisk = event.event_type === "Risk"
-  const roleLabel =
-    event.matched_role === "Strategy"
-      ? "Executive / Strategy"
-      : event.matched_role === "Medical"
-        ? "Market Access / Policy"
-        : event.matched_role === "Commercial"
-          ? "Commercial / Sales"
-          : event.matched_role === "Finance"
-            ? "Finance"
-            : "Executive / Strategy"
-
   const ctx = event.company_context
 
   return (
@@ -431,19 +422,11 @@ export function UnifiedExecutiveCard({ event, isFirstForTutorial }: UnifiedExecu
         </div>
       </div>
 
-      {/* 3. AI Recommendation - collapsible */}
+      {/* 3. AI Recommendation - collapsible with View as */}
       <div ref={analysisRef} className="mt-6 border-t border-border/50 scroll-mt-4">
         {analysisExpanded ? (
           <>
-            <div className="pt-6 flex items-center justify-between gap-2 mb-4">
-              <div className="flex items-center gap-2">
-                <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                  AI Recommendation
-                </p>
-                <Badge className="rounded-full bg-blue-100 dark:bg-blue-950/40 px-2 py-0.5 text-[10px] font-medium text-blue-700 dark:text-blue-400 border-0">
-                  {roleLabel}
-                </Badge>
-              </div>
+            <div className="pt-6 flex items-center justify-between gap-2 mb-2">
               <Button
                 variant="ghost"
                 size="sm"
@@ -454,80 +437,11 @@ export function UnifiedExecutiveCard({ event, isFirstForTutorial }: UnifiedExecu
                 Close
               </Button>
             </div>
+            <AIRecommendation
+              cardId={eventToCardId(event.title, event.summary, event.tags)}
+            />
 
-        {/* 4. Primary Outcome (large bold block) */}
-        <div className="mb-5">
-          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
-            Primary Outcome
-          </p>
-          <p className="text-base font-bold text-card-foreground leading-relaxed">
-            {event.primary_outcome}
-          </p>
-        </div>
-
-        {/* 5. Confidence (subtle row) */}
-        <div className="mb-5 flex flex-wrap items-center gap-2">
-          <Check className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-          <span className="text-sm text-muted-foreground leading-relaxed">
-            Confidence: {event.confidence}
-          </span>
-        </div>
-
-        {/* 6. What's Changing */}
-        <div className="mb-5">
-          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
-            What&apos;s Changing
-          </p>
-          <p className="text-sm leading-relaxed text-card-foreground">
-            {event.whats_changing}
-          </p>
-        </div>
-
-        {/* 7. Why It Matters */}
-        <div className="mb-5">
-          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
-            Why It Matters
-          </p>
-          <p className="text-sm leading-relaxed text-card-foreground">
-            {event.why_it_matters}
-          </p>
-        </div>
-
-        {/* 8. What To Do Now */}
-        <div className="mb-5">
-          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
-            What To Do Now
-          </p>
-          <p className="text-sm leading-relaxed text-card-foreground">
-            {event.what_to_do_now}
-          </p>
-        </div>
-
-        {/* 9. Decision Urgency - prominent for visibility */}
-        <div className="mb-5">
-          <p className="text-xs font-bold uppercase tracking-wide text-blue-600 mb-2">
-            Decision Urgency
-          </p>
-          <div className="rounded-md border-2 border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/30 px-4 py-3">
-            <p className="text-base font-semibold leading-relaxed text-card-foreground">
-              {event.decision_urgency}
-            </p>
-          </div>
-        </div>
-
-        {/* 10. Recommended Next Step (boxed) */}
-        <div className="mb-5">
-          <p className="text-xs font-bold uppercase tracking-wide text-blue-600 mb-1.5">
-            Recommended Next Step
-          </p>
-          <div className="rounded-md border border-border bg-muted/30 dark:bg-muted/20 px-3 py-2.5">
-            <p className="text-sm leading-relaxed text-card-foreground">
-              {event.recommended_next_step}
-            </p>
-          </div>
-        </div>
-
-        {/* 10b. Messaging & Marketing Brief */}
+        {/* 10b. Messaging & Marketing Brief - event-specific, keep below AI Recommendation */}
         {(event.messaging_instructions || event.positioning_before || event.positioning_after) && (
           <div className="mb-5">
             <p className="text-xs font-bold uppercase tracking-wide text-blue-600 mb-2 flex items-center gap-1.5">

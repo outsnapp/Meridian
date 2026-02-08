@@ -154,14 +154,15 @@ const questions: Record<
 }
 
 export function getSuggestedQuestions(
-  cardId: CardId | null,
+  cardId: string | null,
   department: LegacyDepartment,
 ): SuggestedQuestion[] {
   if (!cardId) return []
-  return questions[cardId]?.[department] ?? []
+  const key = cardId as CardId
+  return questions[key]?.[department] ?? []
 }
 
-export function getCardTitle(cardId: CardId | null): string {
+export function getCardTitle(cardId: string | null): string {
   if (cardId === "biosimilar-entry")
     return "Competitive Entry: Biosimilar Approval in EU"
   if (cardId === "medicare-reimbursement")
@@ -170,7 +171,7 @@ export function getCardTitle(cardId: CardId | null): string {
 }
 
 export function getCardSignalType(
-  cardId: CardId | null,
+  cardId: string | null,
 ): "Risk" | "Opportunity" | null {
   if (cardId === "biosimilar-entry") return "Risk"
   if (cardId === "medicare-reimbursement") return "Opportunity"
